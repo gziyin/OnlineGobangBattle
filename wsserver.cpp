@@ -1,25 +1,37 @@
+#include <websocketpp/config/asio_no_tls.hpp>
 #include <iostream>
 #include <string>
 #include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 
 
-typedef websocketpp:: server<websocketpp:: config:: asio_no_tls> wsserver_t;
+typedef websocketpp:: server<websocketpp:: config:: asio> wsserver_t; //这里必须用asio，而不是asio_no_tls，命名问题。
 
 void http_callback(wsserver_t* srv, websocketpp:: connection_hdl hdl) {
+    wsserver_t:: connection_ptr conn = srv->get_con_from_hdl(hdl);
+    std::cout<< "body:" << conn->get_request_body() << std::endl;
+    websocketpp::http::parser::request rep = conn->get_request();
+    std::cout<< "uri:" << rep.get_uri() << std::endl;
+    std::cout<< "method:" << rep.get_method() << std::endl;
 
+    std:: string body = "<html><body><h1>Hello, World!</h1></body></html>";
+    conn->set_body(body);
+    conn->set_status(websocketpp::http::status_code::ok);
+    conn->append_header("Content-Type","text/html");
 }
 
-void open_callback(wsserver_t* srv,websocketpp:: coonnection_hdl hdl) {
-    
+void open_callback(wsserver_t* srv,websocketpp:: connection_hdl hdl) {
+    std:: cout <<"握手成功，连接已打开" << std::endl;
 }
 
-void close_callback(wsserver_t* srv,websocketpp:: coonnection_hdl hdl) {
-    
+void close_callback(wsserver_t* srv,websocketpp:: connection_hdl hdl) {
+    std:: cout <<"连接已关闭" << std::endl;
 }
 
-void message_callback(wsserver_t* srv,websocketpp:: coonnection_hdl hdl, wsserver_t::message_ptr msg) {
-    
+void message_callback(wsserver_t* srv,websocketpp:: connection_hdl hdl, wsserver_t::message_ptr msg) {
+    wsserver_t:: connection_ptr conn = srv->get_con_from_hdl(hdl);
+    std:: cout <<"收到消息:" << msg->get_payload() << std::endl;
+    std:: string response = "服务器已收到消息: " + msg->get_payload();
+    conn->send(response,websocketpp::frame::opcode::text);
 }
 
 int main()
