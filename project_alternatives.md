@@ -124,7 +124,7 @@ online_gobang/
   - [ T] MySQL 开发包
   - [ T] WebSocket++ 库
 - [T ] 配置 MySQL 数据库服务
-- [ ] 克隆项目代码仓库
+- [ T] 克隆项目代码仓库
 
 **Day 3-4: WebSocket++ 框架搭建**
 - [T ] 实现 HTTP 请求处理框架
