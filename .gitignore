@@ -1,0 +1,12 @@
+# 编译产物
+source/build/
+*.o
+*.out
+
+# 日志
+source/logs/
+
+# 旧的测试文件
+json
+mysql
+wsserver

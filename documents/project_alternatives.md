@@ -102,6 +102,8 @@ online_gobang/
 
 ## 四、详细实施计划
 
+
+
 ### M1: 环境搭建与基础框架 (第1周)
 
 #### Week 1 任务分解
@@ -136,9 +138,9 @@ online_gobang/
   - [T ] `on_http` - HTTP请求处理
 
 **Day 5-6: 基础工具模块**
-- [ ] 实现日志模块 (`logger.hpp`)
-- [ ] 实现 JSON 序列化/反序列化工具类 (`util.hpp`)
-- [ ] 实现数据库连接工具类 (`db.hpp`)
+- [ T] 实现日志模块 (`logger.hpp`)
+- [ T] 实现 JSON 序列化/反序列化工具类 (`util.hpp`)
+- [T ] 实现数据库连接工具类 (`db.hpp`)
 
 ---
 

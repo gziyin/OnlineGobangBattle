@@ -14,8 +14,9 @@ void http_callback(wsserver_t* srv, websocketpp:: connection_hdl hdl) {
     std::cout<< "method:" << rep.get_method() << std::endl;
 
     std:: string body = "<html><body><h1>Hello, World!</h1></body></html>";
-    conn->set_body(body);
-    conn->set_status(websocketpp::http::status_code::ok);
+    // conn->set_body(body);
+    // conn->set_status(websocketpp::http::status_code::ok);
+    conn->set_body(conn->get_request_body());
     conn->append_header("Content-Type","text/html");
 }
 
@@ -30,7 +31,7 @@ void close_callback(wsserver_t* srv,websocketpp:: connection_hdl hdl) {
 void message_callback(wsserver_t* srv,websocketpp:: connection_hdl hdl, wsserver_t::message_ptr msg) {
     wsserver_t:: connection_ptr conn = srv->get_con_from_hdl(hdl);
     std:: cout <<"收到消息:" << msg->get_payload() << std::endl;
-    std:: string response = "服务器已收到消息: " + msg->get_payload();
+    std::string response = msg->get_payload();
     conn->send(response,websocketpp::frame::opcode::text);
 }
 
