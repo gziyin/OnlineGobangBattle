@@ -8,8 +8,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 编译选项
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
-# 包含目录
+# 获取项目根目录绝对路径
+get_filename_component(SOURCE_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
+
+# 生成 config.h 文件（包含路径配置）
+configure_file(
+    "${CMAKE_SOURCE_DIR}/config.h.in"
+    "${CMAKE_BINARY_DIR}/config.h"
+    @ONLY
+)
+
+# 包含目录（含生成的 config.h）
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${CMAKE_BINARY_DIR})
 
 # JsonCpp 库查找
 find_package(PkgConfig REQUIRED)

@@ -1,6 +1,7 @@
 // 编译：g++ -std=c++11 test_base.cpp -o test_base -ljsoncpp -lpthread
 #include "../include/logger.hpp"
 #include "../include/util.hpp"
+#include "config.h"  // CMake 生成的配置文件路径
 #include <iostream>
 #include <cassert>
 
@@ -10,7 +11,7 @@ int main() {
     // ── 测试配置读取 ────────────────────────────────────────────
     std::cout << "[1] 测试配置读取...\n";
     try {
-        auto cfg = gobang::util::load_config("../config/server.conf");
+        auto cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
         std::cout << "  server_port:  " << cfg.server_port  << "\n";
         std::cout << "  db_host:      " << cfg.db_host       << "\n";
         std::cout << "  db_pool_size: " << cfg.db_pool_size  << "\n";
@@ -25,7 +26,7 @@ int main() {
     std::cout << "[2] 测试 Logger 初始化...\n";
     try {
         gobang::Logger::instance().init(
-            "../logs/test.log",
+            GOBANG_TEST_LOG_PATH,
             gobang::LogLevel::DEBUG,  // DEBUG 及以上都输出
             1024 * 1024               // 1MB 就轮转（测试用小值）
         );
