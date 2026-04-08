@@ -30,6 +30,26 @@ include_directories(${JSONCPP_INCLUDE_DIRS})
 # pthread 库
 find_package(Threads REQUIRED)
 
+# MySQL 客户端库
+# 优先尝试 pkg-config，如果失败则手动指定路径
+pkg_check_modules(MYSQL mysqlclient)
+if(NOT MYSQL_FOUND)
+    # 手动指定 MySQL 路径（Rocky 9 默认安装路径）
+    find_path(MYSQL_INCLUDE_DIR mysql.h PATHS /usr/include/mysql /usr/local/include/mysql)
+    find_library(MYSQL_LIBRARY mysqlclient PATHS /usr/lib64/mysql /usr/lib/mysql /usr/local/lib64)
+    if(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
+        set(MYSQL_FOUND TRUE)
+        set(MYSQL_INCLUDE_DIRS ${MYSQL_INCLUDE_DIR})
+        set(MYSQL_LIBRARIES ${MYSQL_LIBRARY})
+        message(STATUS "MySQL: found via manual search at ${MYSQL_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "MySQL: not found. Please install mysql-devel package.")
+    endif()
+else()
+    message(STATUS "MySQL: found via pkg-config")
+endif()
+include_directories(${MYSQL_INCLUDE_DIRS})
+
 # ─── 测试目标：test_base ─────────────────────────────────────
 add_executable(test_base tests/test_base.cpp)
 
@@ -41,6 +61,19 @@ target_link_libraries(test_base
 
 # 输出目录
 set_target_properties(test_base PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+)
+
+# ─── 测试目标：test_db_pool ──────────────────────────────────
+add_executable(test_db_pool tests/test_db_pool.cpp)
+
+target_link_libraries(test_db_pool
+    ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    Threads::Threads
+)
+
+set_target_properties(test_db_pool PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 
