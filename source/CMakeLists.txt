@@ -46,9 +46,12 @@ if(NOT MYSQL_FOUND)
         message(FATAL_ERROR "MySQL: not found. Please install mysql-devel package.")
     endif()
 else()
-    message(STATUS "MySQL: found via pkg-config")
+    # pkg-config 找到了，但需要补充库路径（Rocky 9 上常见）
+    set(MYSQL_LIBRARY_DIRS ${MYSQL_LIBRARY_DIRS} /usr/lib64/mysql)
+    message(STATUS "MySQL: found via pkg-config at ${MYSQL_INCLUDE_DIRS}")
 endif()
 include_directories(${MYSQL_INCLUDE_DIRS})
+link_directories(${MYSQL_LIBRARY_DIRS})
 
 # ─── 测试目标：test_base ─────────────────────────────────────
 add_executable(test_base tests/test_base.cpp)
