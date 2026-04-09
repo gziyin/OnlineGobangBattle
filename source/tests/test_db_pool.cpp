@@ -91,36 +91,51 @@ int main() {
     }
     std::cout << "  [INFO] 连接已归还（RAII 自动归还）\n\n";
 
-    // ── 测试 3: 并发获取连接（无超时） ─────────────────────────────
-    std::cout << "[测试 3] 并发获取连接（无超时）...\n";
+    // ── 测试 3: 并发获取连接（超时验证） ─────────────────────────────
+    std::cout << "[测试 3] 并发获取连接（超时验证）...\n";
     {
         DBPool pool;
         cfg.db_pool_size = 5; // 小池大小，便于测试并发
         pool.init(cfg);
 
         std::atomic<int> success_count{0};
-        std::atomic<int> null_count{0};
+        std::atomic<int> timeout_count{0};
         std::mutex log_mtx;
+        std::atomic<bool> start_flag{false}; // 同步启动信号
 
         // 10 个线程同时获取连接，池大小为 5
+        // 前 5 个线程持有连接 2 秒，后 5 个线程应该超时（超时 1 秒）
         std::vector<std::thread> threads;
         for (int i = 0; i < 10; ++i) {
-            threads.emplace_back([&pool, &success_count, &null_count, &log_mtx, i]() {
-                auto conn = pool.get_connection(3000); // 3 秒超时
+            threads.emplace_back([&pool, &success_count, &timeout_count, &log_mtx, &start_flag, i]() {
+                // 等待同步信号，确保所有线程同时开始
+                while (!start_flag.load()) {
+                    std::this_thread::yield();
+                }
+
+                auto conn = pool.get_connection(1000); // 1 秒超时
                 if (conn) {
                     success_count++;
-                    std::lock_guard<std::mutex> lock(log_mtx);
-                    std::cout << "  [DEBUG] 线程 " << i << " 获取连接成功\n";
-                    // 模拟使用连接
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    {
+                        std::lock_guard<std::mutex> lock(log_mtx);
+                        std::cout << "  [DEBUG] 线程 " << i << " 获取连接成功\n";
+                    }
+                    // 持有连接 2 秒，确保其他线程超时
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                     // 作用域结束自动归还
                 } else {
-                    null_count++;
-                    std::lock_guard<std::mutex> lock(log_mtx);
-                    std::cout << "  [DEBUG] 线程 " << i << " 获取连接超时\n";
+                    timeout_count++;
+                    {
+                        std::lock_guard<std::mutex> lock(log_mtx);
+                        std::cout << "  [DEBUG] 线程 " << i << " 获取连接超时\n";
+                    }
                 }
             });
         }
+
+        // 所有线程创建完成后，同时启动
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 确保所有线程准备好
+        start_flag.store(true);
 
         // 等待所有线程完成
         for (auto& t : threads) {
@@ -128,8 +143,8 @@ int main() {
         }
 
         TEST_ASSERT(success_count == 5, "应有 5 个线程成功获取连接（池大小）");
-        TEST_ASSERT(null_count == 5, "应有 5 个线程超时（10 线程 - 5 连接）");
-        std::cout << "  [INFO] 成功：" << success_count << ", 超时：" << null_count << "\n\n";
+        TEST_ASSERT(timeout_count == 5, "应有 5 个线程超时（10 线程 - 5 连接）");
+        std::cout << "  [INFO] 成功：" << success_count << ", 超时：" << timeout_count << "\n\n";
     }
 
     // ── 测试 4: 超时机制验证 ─────────────────────────────────────
