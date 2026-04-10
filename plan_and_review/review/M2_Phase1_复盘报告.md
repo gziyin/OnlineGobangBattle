@@ -233,9 +233,78 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 
 ---
 
-## 六、经验教训
+## 六、核心知识点总结
 
-### 6.1 做得好的地方
+### 6.1 数据结构
+
+| 组件 | 选择 | 说明 |
+|------|------|------|
+| 连接容器 | `std::queue<MYSQL*>` | FIFO 先进先出，但换成 `stack` 也无所谓，所有连接等价 |
+
+### 6.2 线程安全三件套
+
+| 组件 | 作用 | 为什么需要 |
+|------|------|------------|
+| `mutex` | 互斥锁 | 同一时间只有一个线程能操作队列，防止多线程同时取同一个连接 |
+| `lock_guard` | RAII 包装器 | 构造时加锁，出作用域自动解锁，防止忘记解锁导致死锁 |
+| `condition_variable` | 条件变量 | 线程等待时睡过去不占 CPU，有连接归还时被叫醒 |
+
+### 6.3 RAII（资源获取即初始化）
+
+**核心思想**：构造时获取资源，析构时自动释放
+
+**三处体现**：
+1. `lock_guard` 管理锁 —— 出作用域自动解锁
+2. `ConnGuard` 管理连接 —— 出作用域自动归还到池
+3. `DBPool` 析构函数 —— 自动调用 `shutdown()` 释放所有连接
+
+### 6.4 ConnGuard 设计
+
+```cpp
+using ConnGuard = std::unique_ptr<MYSQL, std::function<void(MYSQL*)>>;
+```
+
+- `unique_ptr` 的自定义析构版本
+- 出作用域时不是 `delete`，而是执行 lambda：`return_connection(conn)`
+- 用户无需手动归还，即使异常抛出也会自动归还
+
+### 6.5 get_connection 核心逻辑
+
+**为什么用 `while` 不用 `if`？**
+```cpp
+while (_pool.empty()) {
+    if (_cv.wait_until(lock, deadline) == std::cv_status::timeout) {
+        return nullptr;
+    }
+}
+```
+- 防止**虚假唤醒**（spurious wakeup）
+- 每次醒来重新确认队列不空再取连接
+
+**`wait_until` 工作原理**：
+- 睡过去，释放锁
+- 超时或被 `notify` 才醒
+- 醒来后重新加锁
+- 判断是哪种情况唤醒的
+
+**醒来后检查 `_running`**：
+- 防止是 `shutdown()` 的 `notify_all` 叫醒的
+- 如果是关闭状态，返回 `nullptr`
+
+### 6.6 细节设计
+
+| 设计点 | 原因 |
+|--------|------|
+| 构造函数只设 `_running=false` | 真正初始化推迟到 `init()`，避免构造时抛异常 |
+| 禁止拷贝和移动 | 防止两个对象持有同一批连接指针，析构时双重释放崩溃 |
+| `notify_one` 放锁外 | 被叫醒的线程能立刻拿到锁，少等一次，提高并发性能 |
+| `shutdown` 用 `notify_all` | 叫醒所有等待线程，让它们检查 `_running` 后退出，防止永远睡着 |
+
+---
+
+## 七、经验教训
+
+### 7.1 做得好的地方
 
 1. **用户审查提前发现问题**
    - 用户提出 4 点注意事项（CMake 依赖、RAII 智能指针、测试断言、密码配置）
@@ -257,7 +326,7 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
    - 测试逻辑问题立即修复并推送
    - **后续保持**: 持续快速响应
 
-### 6.2 需要改进的地方
+### 7.2 需要改进的地方
 
 1. **测试 3 初始设计缺陷**
    - 未考虑线程执行顺序问题
@@ -275,9 +344,9 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 
 ---
 
-## 七、风险与应对
+## 八、风险与应对
 
-### 7.1 当前风险
+### 8.1 当前风险
 
 | 风险 | 概率 | 影响 | 应对措施 |
 |------|------|------|----------|
@@ -285,7 +354,7 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 | 数据库表未创建 | 中 | 高 | Phase 2 前执行建表 SQL |
 | 虚拟机网络不稳定 | 中 | 中 | 使用 git 流程，不依赖 rsync |
 
-### 7.2 Phase 2 前置条件
+### 8.2 Phase 2 前置条件
 
 - [x] MySQL 服务已启动
 - [x] 数据库 `gobang_db` 已创建
@@ -294,9 +363,9 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 
 ---
 
-## 八、Phase 2 计划预览
+## 九、Phase 2 计划预览
 
-### 8.1 待实现模块
+### 9.1 待实现模块
 
 | 模块 | 功能 | 预估工时 |
 |------|------|----------|
@@ -304,7 +373,7 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 | `security.hpp` | PBKDF2 密码加密 + JWT | 3-4h |
 | HTTP 认证 API | /register, /login, /info | 2-3h |
 
-### 8.2 验收标准
+### 9.2 验收标准
 
 - [ ] 用户注册成功，密码 PBKDF2 加密
 - [ ] 用户登录验证正确
@@ -314,9 +383,9 @@ link_directories(${MYSQL_LIBRARY_DIRS})  # 关键修复
 
 ---
 
-## 九、附录
+## 十、附录
 
-### 9.1 文件清单
+### 10.1 文件清单
 
 ```
 source/
@@ -333,7 +402,7 @@ source/
 └── CMakeLists.txt          # 构建配置（修改）
 ```
 
-### 9.2 编译与测试命令
+### 10.2 编译与测试命令
 
 ```bash
 # 虚拟机中执行
@@ -347,7 +416,7 @@ cmake .. && cmake --build .
 ./bin/test_db_pool
 ```
 
-### 9.3 数据库初始化 SQL
+### 10.3 数据库初始化 SQL
 
 ```sql
 -- Phase 2 前执行
