@@ -122,7 +122,7 @@ int main() {
         if (ok) {
             TEST_ASSERT(!out.isMember("password_hash"), "select_by_username 不应返回 password_hash 字段");
             std::cout << "  [INFO] 公开信息：username=" << out["username"].asString()
-                      << ", score=" << out["score"].asInt() << "\n";
+                      << ", score=" << out["score"].asUInt64() << "\n";
         }
         std::cout << "\n";
     }
@@ -140,8 +140,8 @@ int main() {
             Json::Value winner_before, loser_before;
             user_table.select_by_id(winner_id, winner_before);
             user_table.select_by_id(loser_id, loser_before);
-            int initial_winner_score = winner_before["score"].asInt();
-            int initial_loser_score = loser_before["score"].asInt();
+            int initial_winner_score = (int)winner_before["score"].asUInt64();
+            int initial_loser_score = (int)loser_before["score"].asUInt64();
             std::cout << "  [INFO] 初始分数 - winner: " << initial_winner_score
                       << ", loser: " << initial_loser_score << "\n";
 
@@ -155,22 +155,22 @@ int main() {
                 user_table.select_by_id(winner_id, winner_after);
                 user_table.select_by_id(loser_id, loser_after);
 
-                TEST_ASSERT(winner_after["score"].asInt() == initial_winner_score + 25,
+                TEST_ASSERT(winner_after["score"].asUInt64() == (unsigned long long)initial_winner_score + 25,
                             "winner 分数应 +25");
-                TEST_ASSERT(winner_after["win_count"].asInt() == 1,
+                TEST_ASSERT(winner_after["win_count"].asUInt64() == 1,
                             "winner win_count 应 +1");
-                TEST_ASSERT(winner_after["total_count"].asInt() == 1,
+                TEST_ASSERT(winner_after["total_count"].asUInt64() == 1,
                             "winner total_count 应 +1");
-                TEST_ASSERT(loser_after["score"].asInt() == initial_loser_score - 15,
+                TEST_ASSERT(loser_after["score"].asUInt64() == (unsigned long long)initial_loser_score - 15,
                             "loser 分数应 -15");
-                TEST_ASSERT(loser_after["total_count"].asInt() == 1,
+                TEST_ASSERT(loser_after["total_count"].asUInt64() == 1,
                             "loser total_count 应 +1");
 
-                std::cout << "  [INFO] 更新后 - winner: score=" << winner_after["score"].asInt()
-                          << ", win_count=" << winner_after["win_count"].asInt()
-                          << ", total_count=" << winner_after["total_count"].asInt() << "\n";
-                std::cout << "  [INFO] 更新后 - loser: score=" << loser_after["score"].asInt()
-                          << ", total_count=" << loser_after["total_count"].asInt() << "\n";
+                std::cout << "  [INFO] 更新后 - winner: score=" << winner_after["score"].asUInt64()
+                          << ", win_count=" << winner_after["win_count"].asUInt64()
+                          << ", total_count=" << winner_after["total_count"].asUInt64() << "\n";
+                std::cout << "  [INFO] 更新后 - loser: score=" << loser_after["score"].asUInt64()
+                          << ", total_count=" << loser_after["total_count"].asUInt64() << "\n";
             }
         }
         std::cout << "\n";
