@@ -499,12 +499,12 @@ inline bool UserTable::select_for_auth(const std::string& username, Json::Value&
     username_buf[username_len] = '\0';
     password_hash_buf[password_hash_len] = '\0';
 
-    out["id"] = Json::Value::Int64(id);
+    out["id"] = (Json::Int64)id;
     out["username"] = username_buf;
     out["password_hash"] = password_hash_buf;
-    out["score"] = Json::Value::UInt64(score);
-    out["total_count"] = Json::Value::UInt64(total_count);
-    out["win_count"] = Json::Value::UInt64(win_count);
+    out["score"] = (Json::UInt64)score;
+    out["total_count"] = (Json::UInt64)total_count;
+    out["win_count"] = (Json::UInt64)win_count;
     out["status"] = status;
 
     LOG_DEBUG("UserTable: select_for_auth - username=" << username);
@@ -623,11 +623,11 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
     // 填充 JSON 输出
     username_buf[username_len] = '\0';
 
-    out["id"] = Json::Value::Int64(id);
+    out["id"] = (Json::Int64)id;
     out["username"] = username_buf;
-    out["score"] = Json::Value::UInt64(score);
-    out["total_count"] = Json::Value::UInt64(total_count);
-    out["win_count"] = Json::Value::UInt64(win_count);
+    out["score"] = (Json::UInt64)score;
+    out["total_count"] = (Json::UInt64)total_count;
+    out["win_count"] = (Json::UInt64)win_count;
     out["status"] = status;
 
     LOG_DEBUG("UserTable: select_by_username - username=" << username);
@@ -745,11 +745,11 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
     // 填充 JSON 输出
     username_buf[username_len] = '\0';
 
-    out["id"] = Json::Value::Int64(id);
+    out["id"] = (Json::Int64)id;
     out["username"] = username_buf;
-    out["score"] = Json::Value::UInt64(score);
-    out["total_count"] = Json::Value::UInt64(total_count);
-    out["win_count"] = Json::Value::UInt64(win_count);
+    out["score"] = (Json::UInt64)score;
+    out["total_count"] = (Json::UInt64)total_count;
+    out["win_count"] = (Json::UInt64)win_count;
     out["status"] = status;
 
     LOG_DEBUG("UserTable: select_by_id - user_id=" << user_id);
