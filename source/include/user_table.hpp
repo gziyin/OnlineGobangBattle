@@ -565,12 +565,12 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
     MYSQL_BIND result[6];
     memset(result, 0, sizeof(result));
 
-    unsigned long id;
+    unsigned int id;
     char username_buf[33];
     unsigned long username_len = 0;
-    unsigned long score;
-    unsigned long total_count;
-    unsigned long win_count;
+    unsigned int score;
+    unsigned int total_count;
+    unsigned int win_count;
     int status;
 
     bool is_null_false = false;
@@ -687,12 +687,12 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
     MYSQL_BIND result[6];
     memset(result, 0, sizeof(result));
 
-    unsigned long id;
+    unsigned int id;
     char username_buf[33];
     unsigned long username_len = 0;
-    unsigned long score;
-    unsigned long total_count;
-    unsigned long win_count;
+    unsigned int score;
+    unsigned int total_count;
+    unsigned int win_count;
     int status;
 
     bool is_null_false = false;
