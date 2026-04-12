@@ -80,6 +80,19 @@ set_target_properties(test_db_pool PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 
+# ─── 测试目标：test_user_table ──────────────────────────────────
+add_executable(test_user_table tests/test_user_table.cpp)
+
+target_link_libraries(test_user_table
+    ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    Threads::Threads
+)
+
+set_target_properties(test_user_table PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+)
+
 # ─── 打印配置信息 ───────────────────────────────────────────
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
