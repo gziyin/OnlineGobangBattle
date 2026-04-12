@@ -3,11 +3,14 @@
 #include <cstdint>
 #include <json/json.h>
 
-#include <errmsg.h>  // MySQL 错误码定义
-
 #include "db.hpp"
 #include "logger.hpp"
 #include "util.hpp"
+
+// MySQL 错误码（ER_DUP_ENTRY = 1062）
+#ifndef ER_DUP_ENTRY
+#define ER_DUP_ENTRY 1062
+#endif
 
 namespace gobang {
 
@@ -558,7 +561,7 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
         return false;
     }
 
-    // 绑定结果
+    // 绑定结果（select_by_username）
     MYSQL_BIND result[6];
     memset(result, 0, sizeof(result));
 
@@ -569,6 +572,8 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
     unsigned long total_count;
     unsigned long win_count;
     int status;
+
+    bool is_null_false = false;
 
     // id
     result[0].buffer_type = MYSQL_TYPE_LONG;
@@ -678,7 +683,7 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
         return false;
     }
 
-    // 绑定结果
+    // 绑定结果（select_by_id）
     MYSQL_BIND result[6];
     memset(result, 0, sizeof(result));
 
@@ -689,6 +694,8 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
     unsigned long total_count;
     unsigned long win_count;
     int status;
+
+    bool is_null_false = false;
 
     // id
     result[0].buffer_type = MYSQL_TYPE_LONG;
