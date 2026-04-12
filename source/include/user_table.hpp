@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <json/json.h>
 
+#include <errmsg.h>  // MySQL 错误码定义
+
 #include "db.hpp"
 #include "logger.hpp"
 #include "util.hpp"
@@ -138,18 +140,20 @@ inline int64_t UserTable::insert(const std::string& username, const std::string&
     MYSQL_BIND params[2];
     memset(params, 0, sizeof(params));
 
+    bool is_null = false;
+
     // username
     params[0].buffer_type = MYSQL_TYPE_STRING;
     params[0].buffer = (char*)username.c_str();
     params[0].buffer_length = username.size();
-    params[0].is_null = false;
+    params[0].is_null = &is_null;
     params[0].length = nullptr;
 
     // password_hash
     params[1].buffer_type = MYSQL_TYPE_STRING;
     params[1].buffer = (char*)password_hash.c_str();
     params[1].buffer_length = password_hash.size();
-    params[1].is_null = false;
+    params[1].is_null = &is_null;
     params[1].length = nullptr;
 
     if (mysql_stmt_bind_param(stmt, params) != 0) {
@@ -208,15 +212,17 @@ inline bool UserTable::update_status(int64_t user_id, int status) {
     MYSQL_BIND params[2];
     memset(params, 0, sizeof(params));
 
+    bool is_null = false;
+
     // status
     params[0].buffer_type = MYSQL_TYPE_LONG;
     params[0].buffer = &status;
-    params[0].is_null = false;
+    params[0].is_null = &is_null;
 
     // user_id
     params[1].buffer_type = MYSQL_TYPE_LONGLONG;
     params[1].buffer = &user_id;
-    params[1].is_null = false;
+    params[1].is_null = &is_null;
 
     if (mysql_stmt_bind_param(stmt, params) != 0) {
         LOG_ERROR("UserTable: mysql_stmt_bind_param failed: " << mysql_stmt_error(stmt));
@@ -279,13 +285,15 @@ inline bool UserTable::update_score_match(int64_t winner_id, int64_t loser_id,
     MYSQL_BIND winner_params[2];
     memset(winner_params, 0, sizeof(winner_params));
 
+    bool is_null = false;
+
     winner_params[0].buffer_type = MYSQL_TYPE_LONG;
     winner_params[0].buffer = &winner_delta;
-    winner_params[0].is_null = false;
+    winner_params[0].is_null = &is_null;
 
     winner_params[1].buffer_type = MYSQL_TYPE_LONGLONG;
     winner_params[1].buffer = &winner_id;
-    winner_params[1].is_null = false;
+    winner_params[1].is_null = &is_null;
 
     if (mysql_stmt_bind_param(stmt_winner, winner_params) != 0) {
         LOG_ERROR("UserTable: bind winner params failed: " << mysql_stmt_error(stmt_winner));
@@ -324,11 +332,11 @@ inline bool UserTable::update_score_match(int64_t winner_id, int64_t loser_id,
 
     loser_params[0].buffer_type = MYSQL_TYPE_LONG;
     loser_params[0].buffer = &loser_penalty;
-    loser_params[0].is_null = false;
+    loser_params[0].is_null = &is_null;
 
     loser_params[1].buffer_type = MYSQL_TYPE_LONGLONG;
     loser_params[1].buffer = &loser_id;
-    loser_params[1].is_null = false;
+    loser_params[1].is_null = &is_null;
 
     if (mysql_stmt_bind_param(stmt_loser, loser_params) != 0) {
         LOG_ERROR("UserTable: bind loser params failed: " << mysql_stmt_error(stmt_loser));
@@ -401,7 +409,8 @@ inline bool UserTable::select_for_auth(const std::string& username, Json::Value&
     param.buffer_type = MYSQL_TYPE_STRING;
     param.buffer = (char*)username.c_str();
     param.buffer_length = username.size();
-    param.is_null = false;
+    bool is_null = false;
+    param.is_null = &is_null;
 
     if (mysql_stmt_bind_param(stmt, &param) != 0) {
         LOG_ERROR("UserTable: bind param failed: " << mysql_stmt_error(stmt));
@@ -429,44 +438,46 @@ inline bool UserTable::select_for_auth(const std::string& username, Json::Value&
     unsigned long win_count;
     int status;
 
+    bool is_null_false = false;
+
     // id
     result[0].buffer_type = MYSQL_TYPE_LONG;
     result[0].buffer = &id;
-    result[0].is_null = false;
+    result[0].is_null = &is_null_false;
 
     // username
     result[1].buffer_type = MYSQL_TYPE_STRING;
     result[1].buffer = username_buf;
     result[1].buffer_length = sizeof(username_buf) - 1;
     result[1].length = &username_len;
-    result[1].is_null = false;
+    result[1].is_null = &is_null_false;
 
     // password_hash
     result[2].buffer_type = MYSQL_TYPE_STRING;
     result[2].buffer = password_hash_buf;
     result[2].buffer_length = sizeof(password_hash_buf) - 1;
     result[2].length = &password_hash_len;
-    result[2].is_null = false;
+    result[2].is_null = &is_null_false;
 
     // score
     result[3].buffer_type = MYSQL_TYPE_LONG;
     result[3].buffer = &score;
-    result[3].is_null = false;
+    result[3].is_null = &is_null_false;
 
     // total_count
     result[4].buffer_type = MYSQL_TYPE_LONG;
     result[4].buffer = &total_count;
-    result[4].is_null = false;
+    result[4].is_null = &is_null_false;
 
     // win_count
     result[5].buffer_type = MYSQL_TYPE_LONG;
     result[5].buffer = &win_count;
-    result[5].is_null = false;
+    result[5].is_null = &is_null_false;
 
     // status
     result[6].buffer_type = MYSQL_TYPE_TINY;
     result[6].buffer = &status;
-    result[6].is_null = false;
+    result[6].is_null = &is_null_false;
 
     if (mysql_stmt_bind_result(stmt, result) != 0) {
         LOG_ERROR("UserTable: bind result failed: " << mysql_stmt_error(stmt));
@@ -526,15 +537,16 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
         return false;
     }
 
-    // 绑定输入参数
-    MYSQL_BIND param;
-    memset(&param, 0, sizeof(param));
-    param.buffer_type = MYSQL_TYPE_STRING;
-    param.buffer = (char*)username.c_str();
-    param.buffer_length = username.size();
-    param.is_null = false;
+    // 绑定输入参数（select_by_username）
+    MYSQL_BIND param_username;
+    memset(&param_username, 0, sizeof(param_username));
+    param_username.buffer_type = MYSQL_TYPE_STRING;
+    param_username.buffer = (char*)username.c_str();
+    param_username.buffer_length = username.size();
+    bool is_null_username = false;
+    param_username.is_null = &is_null_username;
 
-    if (mysql_stmt_bind_param(stmt, &param) != 0) {
+    if (mysql_stmt_bind_param(stmt, &param_username) != 0) {
         LOG_ERROR("UserTable: bind param failed: " << mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return false;
@@ -561,34 +573,34 @@ inline bool UserTable::select_by_username(const std::string& username, Json::Val
     // id
     result[0].buffer_type = MYSQL_TYPE_LONG;
     result[0].buffer = &id;
-    result[0].is_null = false;
+    result[0].is_null = &is_null_false;
 
     // username
     result[1].buffer_type = MYSQL_TYPE_STRING;
     result[1].buffer = username_buf;
     result[1].buffer_length = sizeof(username_buf) - 1;
     result[1].length = &username_len;
-    result[1].is_null = false;
+    result[1].is_null = &is_null_false;
 
     // score
     result[2].buffer_type = MYSQL_TYPE_LONG;
     result[2].buffer = &score;
-    result[2].is_null = false;
+    result[2].is_null = &is_null_false;
 
     // total_count
     result[3].buffer_type = MYSQL_TYPE_LONG;
     result[3].buffer = &total_count;
-    result[3].is_null = false;
+    result[3].is_null = &is_null_false;
 
     // win_count
     result[4].buffer_type = MYSQL_TYPE_LONG;
     result[4].buffer = &win_count;
-    result[4].is_null = false;
+    result[4].is_null = &is_null_false;
 
     // status
     result[5].buffer_type = MYSQL_TYPE_TINY;
     result[5].buffer = &status;
-    result[5].is_null = false;
+    result[5].is_null = &is_null_false;
 
     if (mysql_stmt_bind_result(stmt, result) != 0) {
         LOG_ERROR("UserTable: bind result failed: " << mysql_stmt_error(stmt));
@@ -646,14 +658,15 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
         return false;
     }
 
-    // 绑定输入参数
-    MYSQL_BIND param;
-    memset(&param, 0, sizeof(param));
-    param.buffer_type = MYSQL_TYPE_LONGLONG;
-    param.buffer = &user_id;
-    param.is_null = false;
+    // 绑定输入参数（select_by_id）
+    MYSQL_BIND param_id;
+    memset(&param_id, 0, sizeof(param_id));
+    param_id.buffer_type = MYSQL_TYPE_LONGLONG;
+    param_id.buffer = &user_id;
+    bool is_null_id = false;
+    param_id.is_null = &is_null_id;
 
-    if (mysql_stmt_bind_param(stmt, &param) != 0) {
+    if (mysql_stmt_bind_param(stmt, &param_id) != 0) {
         LOG_ERROR("UserTable: bind param failed: " << mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return false;
@@ -680,34 +693,34 @@ inline bool UserTable::select_by_id(int64_t user_id, Json::Value& out) {
     // id
     result[0].buffer_type = MYSQL_TYPE_LONG;
     result[0].buffer = &id;
-    result[0].is_null = false;
+    result[0].is_null = &is_null_false;
 
     // username
     result[1].buffer_type = MYSQL_TYPE_STRING;
     result[1].buffer = username_buf;
     result[1].buffer_length = sizeof(username_buf) - 1;
     result[1].length = &username_len;
-    result[1].is_null = false;
+    result[1].is_null = &is_null_false;
 
     // score
     result[2].buffer_type = MYSQL_TYPE_LONG;
     result[2].buffer = &score;
-    result[2].is_null = false;
+    result[2].is_null = &is_null_false;
 
     // total_count
     result[3].buffer_type = MYSQL_TYPE_LONG;
     result[3].buffer = &total_count;
-    result[3].is_null = false;
+    result[3].is_null = &is_null_false;
 
     // win_count
     result[4].buffer_type = MYSQL_TYPE_LONG;
     result[4].buffer = &win_count;
-    result[4].is_null = false;
+    result[4].is_null = &is_null_false;
 
     // status
     result[5].buffer_type = MYSQL_TYPE_TINY;
     result[5].buffer = &status;
-    result[5].is_null = false;
+    result[5].is_null = &is_null_false;
 
     if (mysql_stmt_bind_result(stmt, result) != 0) {
         LOG_ERROR("UserTable: bind result failed: " << mysql_stmt_error(stmt));
