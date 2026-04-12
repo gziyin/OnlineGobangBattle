@@ -431,14 +431,14 @@ inline bool UserTable::select_for_auth(const std::string& username, Json::Value&
     MYSQL_BIND result[7];
     memset(result, 0, sizeof(result));
 
-    unsigned long id;
+    unsigned int id;
     char username_buf[33];
     unsigned long username_len = 0;
     char password_hash_buf[513];
     unsigned long password_hash_len = 0;
-    unsigned long score;
-    unsigned long total_count;
-    unsigned long win_count;
+    unsigned int score;
+    unsigned int total_count;
+    unsigned int win_count;
     int status;
 
     bool is_null_false = false;
