@@ -1,0 +1,24 @@
+# 五子棋服务器配置文件
+# '#' 开头的行为注释，会被忽略
+
+# —— 服务器 ————————————————————————————————
+server_port     = 8080
+server_threads  = 4
+
+# —— 数据库 ————————————————————————————————
+db_host         = 127.0.0.1
+db_port         = 3306
+db_user         = your_db_user      //需自行配置
+db_password     = your_db_password  //需自行配置
+db_name         = gobang_db         //需自行配置
+db_pool_size    = 10
+
+# —— 日志 ——————————————————————————————————
+log_file        = logs/server.log
+log_level       = INFO
+log_max_bytes   = 10485760
+
+# —— 游戏规则 ——————————————————————————————
+reconnect_timeout  = 60
+match_timeout      = 30
+heartbeat_interval = 30
