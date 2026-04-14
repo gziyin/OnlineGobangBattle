@@ -14,6 +14,7 @@
 
 #include "util.hpp"
 #include "logger.hpp"
+#include "config.h"  // 包含 GOBANG_CONFIG_PATH
 
 namespace gobang {
 namespace security {
@@ -162,8 +163,8 @@ static inline std::string jwt_generate(int64_t user_id, int64_t expire_sec = 864
         auto now = std::chrono::system_clock::now();
         auto exp = now + std::chrono::seconds(expire_sec);
 
-        // 从 Config 读取 JWT 配置
-        static gobang::util::Config cfg = gobang::util::load_config("config/server.conf");
+        // 从 Config 读取 JWT 配置（使用 CMake 生成的绝对路径）
+        static gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
         std::string secret = cfg.jwt_secret;
         std::string issuer = cfg.jwt_issuer;
 
@@ -190,8 +191,8 @@ static inline std::string jwt_generate(int64_t user_id, int64_t expire_sec = 864
  */
 static inline int64_t jwt_verify(const std::string& token) {
     try {
-        // 从 Config 读取 JWT 配置
-        static gobang::util::Config cfg = gobang::util::load_config("config/server.conf");
+        // 从 Config 读取 JWT 配置（使用 CMake 生成的绝对路径）
+        static gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
         std::string secret = cfg.jwt_secret;
         std::string issuer = cfg.jwt_issuer;
 
