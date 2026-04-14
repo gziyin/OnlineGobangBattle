@@ -30,6 +30,15 @@ include_directories(${JSONCPP_INCLUDE_DIRS})
 # pthread 库
 find_package(Threads REQUIRED)
 
+# GTest 库（Phase 3 新增）
+find_package(GTest)
+if(GTEST_FOUND)
+    include_directories(${GTEST_INCLUDE_DIRS})
+    message(STATUS "GTest: found")
+else()
+    message(FATAL_ERROR "GTest: not found. Please install gtest-devel")
+endif()
+
 # OpenSSL 库（Phase 3 新增）
 pkg_check_modules(OPENSSL openssl)
 if(OPENSSL_FOUND)
@@ -118,6 +127,7 @@ target_link_libraries(test_security
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${OPENSSL_LIBRARIES}
+    ${GTEST_LIBRARIES}
     Threads::Threads
 )
 
