@@ -207,15 +207,15 @@ static inline int64_t jwt_verify(const std::string& token) {
         verifier.verify(decoded);
 
         // 获取 user_id
-        auto user_id_claim = decoded.get_payload_claim("user_id");
-        if (user_id_claim.is_string()) {
+        try {
+            auto user_id_claim = decoded.get_payload_claim("user_id");
             int64_t user_id = std::stoll(user_id_claim.as_string());
             LOG_DEBUG("Security: JWT verified, user_id=" << user_id);
             return user_id;
+        } catch (...) {
+            LOG_WARN("Security: JWT claim 'user_id' not found or invalid type");
+            return 0;
         }
-
-        LOG_WARN("Security: JWT claim 'user_id' not found or invalid type");
-        return 0;
 
     } catch (const jwt::error::token_verification_exception& e) {
         // 过期、签名错误、issuer 不对
