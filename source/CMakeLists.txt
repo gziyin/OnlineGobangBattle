@@ -30,6 +30,24 @@ include_directories(${JSONCPP_INCLUDE_DIRS})
 # pthread 库
 find_package(Threads REQUIRED)
 
+# OpenSSL 库（Phase 3 新增）
+pkg_check_modules(OPENSSL openssl)
+if(OPENSSL_FOUND)
+    include_directories(${OPENSSL_INCLUDE_DIRS})
+    message(STATUS "OpenSSL: found at ${OPENSSL_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "OpenSSL: not found. Please install openssl-devel")
+endif()
+
+# jwt-cpp（header-only 库，Phase 3 新增）
+set(JWT_CPP_INCLUDE_DIR "/usr/local/include")
+if(EXISTS ${JWT_CPP_INCLUDE_DIR}/jwt-cpp/jwt.h)
+    include_directories(${JWT_CPP_INCLUDE_DIR})
+    message(STATUS "jwt-cpp: found at ${JWT_CPP_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "jwt-cpp: not found. Please install jwt-cpp")
+endif()
+
 # MySQL 客户端库
 # 优先尝试 pkg-config，如果失败则手动指定路径
 pkg_check_modules(MYSQL mysqlclient)
@@ -90,6 +108,20 @@ target_link_libraries(test_user_table
 )
 
 set_target_properties(test_user_table PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+)
+
+# ─── 测试目标：test_security（Phase 3 新增）────────────────────────
+add_executable(test_security tests/test_security.cpp)
+
+target_link_libraries(test_security
+    ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    Threads::Threads
+)
+
+set_target_properties(test_security PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 

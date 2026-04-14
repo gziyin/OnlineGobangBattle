@@ -22,3 +22,8 @@ log_max_bytes   = 10485760
 reconnect_timeout  = 60
 match_timeout      = 30
 heartbeat_interval = 30
+
+# —— JWT 配置（Phase 3 新增）———————————————
+jwt_secret   = "CHANGE_ME_USE_RANDOM_STRING_AT_LEAST_32_CHARS"
+jwt_issuer   = "online_gobang"
+jwt_expire   = 86400

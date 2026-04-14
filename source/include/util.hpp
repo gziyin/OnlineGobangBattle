@@ -189,6 +189,11 @@ struct Config {
     int         reconnect_timeout   = 60;
     int         match_timeout       = 30;
     int         heartbeat_interval  = 30;
+
+    // JWT 配置（Phase 3 新增）
+    std::string jwt_secret      = "CHANGE_ME";
+    std::string jwt_issuer     = "online_gobang";
+    int64_t     jwt_expire     = 86400;
 };
 
 // 校验配置参数的合法性
@@ -236,6 +241,9 @@ inline Config load_config(const std::string& filepath) {
         else if (key == "reconnect_timeout")     cfg.reconnect_timeout   = std::stoi(val);
         else if (key == "match_timeout")         cfg.match_timeout       = std::stoi(val);
         else if (key == "heartbeat_interval")    cfg.heartbeat_interval  = std::stoi(val);
+        else if (key == "jwt_secret")            cfg.jwt_secret        = val;
+        else if (key == "jwt_issuer")            cfg.jwt_issuer        = val;
+        else if (key == "jwt_expire")            cfg.jwt_expire        = std::stoll(val);
         // 未知 key 直接跳过，不报错（方便以后加新字段）
     }
 
