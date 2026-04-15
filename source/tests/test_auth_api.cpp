@@ -3,7 +3,10 @@
 #include "db.hpp"
 #include "user_table.hpp"
 #include "util.hpp"
+#include "config.h"
 #include <gtest/gtest.h>
+
+using namespace gobang;
 
 class AuthApiTest : public ::testing::Test {
 protected:
