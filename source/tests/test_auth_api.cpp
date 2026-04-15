@@ -109,3 +109,9 @@ TEST_F(AuthApiTest, Token_Verify) {
     ASSERT_EQ(user_id, login_result["user"]["id"].asInt64());     // 断言 2
     ASSERT_TRUE(gobang::auth::is_authenticated(auth_header));      // 断言 3
 }
+
+// ==================== 主函数 ====================
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
