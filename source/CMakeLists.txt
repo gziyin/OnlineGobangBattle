@@ -135,6 +135,21 @@ set_target_properties(test_security PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 
+# ─── 测试目标：test_auth_api（Phase 4 新增）────────────────────────
+add_executable(test_auth_api tests/test_auth_api.cpp)
+
+target_link_libraries(test_auth_api
+    ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+
+set_target_properties(test_auth_api PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+)
+
 # ─── 打印配置信息 ───────────────────────────────────────────
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
