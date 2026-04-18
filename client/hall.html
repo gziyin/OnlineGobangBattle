@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线五子棋 - 游戏大厅</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .avatar {
+            width: 50px;
+            height: 50px;
+            background: #4a90d9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .username {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .score {
+            font-size: 14px;
+            color: #ffd700;
+        }
+        .logout-btn {
+            background: #e74c3c;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        .main-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+        }
+        .status-display {
+            margin-bottom: 30px;
+        }
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .status-text {
+            font-size: 18px;
+            color: #ccc;
+        }
+        .status-text.matching {
+            color: #ffd700;
+        }
+        .status-text.idle {
+            color: #4a90d9;
+        }
+        .match-panel {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .match-btn {
+            padding: 15px 40px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .match-btn.start {
+            background: #4a90d9;
+            color: white;
+        }
+        .match-btn.start:hover {
+            background: #357abd;
+        }
+        .match-btn.cancel {
+            background: #e74c3c;
+            color: white;
+        }
+        .match-btn.cancel:hover {
+            background: #c0392b;
+        }
+        .match-btn.disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .waiting-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+        }
+        .waiting-info .time {
+            color: #ffd700;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .notification.success {
+            background: rgba(46, 204, 113, 0.9);
+        }
+        .notification.error {
+            background: rgba(231, 76, 60, 0.9);
+        }
+        .notification.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .connection-status.connected {
+            color: #2ecc71;
+        }
+        .connection-status.disconnected {
+            color: #e74c3c;
+        }
+        .connection-status.connecting {
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 用户信息头部 -->
+        <div class="header">
+            <div class="user-info">
+                <div class="avatar">棋</div>
+                <div>
+                    <div class="username" id="username">加载中...</div>
+                    <div class="score" id="score">分数: --</div>
+                </div>
+            </div>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+
+        <!-- 主要面板 -->
+        <div class="main-panel">
+            <!-- 状态显示 -->
+            <div class="status-display">
+                <div class="status-icon" id="statusIcon">🎯</div>
+                <div class="status-text idle" id="statusText">空闲中</div>
+            </div>
+
+            <!-- 匹配按钮 -->
+            <div class="match-panel">
+                <button class="match-btn start" id="matchStartBtn">开始匹配</button>
+                <button class="match-btn cancel disabled" id="matchCancelBtn" disabled>取消匹配</button>
+            </div>
+
+            <!-- 等待信息 -->
+            <div class="waiting-info" id="waitingInfo" style="display: none;">
+                等待时间: <span class="time" id="waitTime">0</span> 秒
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知弹窗 -->
+    <div class="notification" id="notification"></div>
+
+    <!-- 连接状态指示 -->
+    <div class="connection-status connecting" id="connectionStatus">正在连接...</div>
+
+    <!-- JavaScript -->
+    <script src="js/websocket.js"></script>
+    <script>
+        // 全局状态
+        const AppState = {
+            IDLE: 'idle',
+            MATCHING: 'matching',
+            MATCHED: 'matched'
+        };
+
+        let currentState = AppState.IDLE;
+        let waitStartTime = 0;
+        let waitTimer = null;
+        let token = null;
+        let userId = null;
+        let username = null;
+        let score = 0;
+
+        // DOM 元素
+        const elements = {
+            username: document.getElementById('username'),
+            score: document.getElementById('score'),
+            statusIcon: document.getElementById('statusIcon'),
+            statusText: document.getElementById('statusText'),
+            matchStartBtn: document.getElementById('matchStartBtn'),
+            matchCancelBtn: document.getElementById('matchCancelBtn'),
+            waitingInfo: document.getElementById('waitingInfo'),
+            waitTime: document.getElementById('waitTime'),
+            notification: document.getElementById('notification'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            logoutBtn: document.getElementById('logoutBtn')
+        };
+
+        // 从 localStorage 获取 token
+        function loadToken() {
+            token = localStorage.getItem('gobang_token');
+            if (!token) {
+                // 没有 token，跳转到登录页
+                window.location.href = 'login.html';
+                return false;
+            }
+
+            // 解析 token 获取用户信息（简单实现）
+            // 实际应由服务端验证后返回
+            const userInfo = JSON.parse(localStorage.getItem('gobang_user') || '{}');
+            userId = userInfo.id;
+            username = userInfo.username;
+            score = userInfo.score || 1000;
+
+            elements.username.textContent = username || '用户';
+            elements.score.textContent = `分数: ${score}`;
+            return true;
+        }
+
+        // 更新 UI 状态
+        function updateUI(state) {
+            currentState = state;
+
+            switch (state) {
+                case AppState.IDLE:
+                    elements.statusIcon.textContent = '🎯';
+                    elements.statusText.textContent = '空闲中';
+                    elements.statusText.className = 'status-text idle';
+                    elements.matchStartBtn.disabled = false;
+                    elements.matchStartBtn.classList.remove('disabled');
+                    elements.matchCancelBtn.disabled = true;
+                    elements.matchCancelBtn.classList.add('disabled');
+                    elements.waitingInfo.style.display = 'none';
+                    stopWaitTimer();
+                    break;
+
+                case AppState.MATCHING:
+                    elements.statusIcon.textContent = '⏳';
+                    elements.statusText.textContent = '正在匹配...';
+                    elements.statusText.className = 'status-text matching';
+                    elements.matchStartBtn.disabled = true;
+                    elements.matchStartBtn.classList.add('disabled');
+                    elements.matchCancelBtn.disabled = false;
+                    elements.matchCancelBtn.classList.remove('disabled');
+                    elements.waitingInfo.style.display = 'block';
+                    startWaitTimer();
+                    break;
+
+                case AppState.MATCHED:
+                    elements.statusIcon.textContent = '✅';
+                    elements.statusText.textContent = '匹配成功！';
+                    elements.statusText.className = 'status-text matched';
+                    elements.matchStartBtn.disabled = true;
+                    elements.matchStartBtn.classList.add('disabled');
+                    elements.matchCancelBtn.disabled = true;
+                    elements.matchCancelBtn.classList.add('disabled');
+                    elements.waitingInfo.style.display = 'none';
+                    stopWaitTimer();
+                    break;
+            }
+        }
+
+        // 等待计时器
+        function startWaitTimer() {
+            waitStartTime = Date.now();
+            waitTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - waitStartTime) / 1000);
+                elements.waitTime.textContent = elapsed;
+            }, 1000);
+        }
+
+        function stopWaitTimer() {
+            if (waitTimer) {
+                clearInterval(waitTimer);
+                waitTimer = null;
+            }
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            elements.notification.textContent = message;
+            elements.notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                elements.notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // WebSocket 事件处理器
+        const eventHandlers = {
+            'match.waiting': (data) => {
+                showNotification('已进入匹配队列', 'success');
+            },
+
+            'match.success': (data) => {
+                updateUI(AppState.MATCHED);
+                showNotification(`匹配成功！房间号: ${data.room_id}`, 'success');
+
+                // 跳转到房间页面
+                setTimeout(() => {
+                    window.location.href = `room.html?room_id=${data.room_id}&color=${data.color}`;
+                }, 2000);
+            },
+
+            'match.cancelled': (data) => {
+                updateUI(AppState.IDLE);
+                showNotification('已取消匹配', 'info');
+            },
+
+            'error': (data) => {
+                showNotification(`错误: ${data.message}`, 'error');
+
+                // 特殊错误处理
+                if (data.code === 4001) {
+                    // token 失效
+                    localStorage.removeItem('gobang_token');
+                    localStorage.removeItem('gobang_user');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else if (data.code === 4003) {
+                    // 不在空闲状态
+                    updateUI(AppState.IDLE);
+                }
+            },
+
+            'pong': (data) => {
+                // 心跳响应，无需处理
+            },
+
+            'auth.success': (data) => {
+                userId = data.user_id;
+                updateConnectionStatus('connected');
+            }
+        };
+
+        // 连接状态更新
+        function updateConnectionStatus(status) {
+            elements.connectionStatus.className = `connection-status ${status}`;
+
+            switch (status) {
+                case 'connected':
+                    elements.connectionStatus.textContent = '已连接';
+                    break;
+                case 'disconnected':
+                    elements.connectionStatus.textContent = '已断开';
+                    break;
+                case 'connecting':
+                    elements.connectionStatus.textContent = '正在连接...';
+                    break;
+            }
+        }
+
+        // WebSocket 客户端
+        let wsClient = null;
+
+        function initWebSocket() {
+            wsClient = new GobangWebSocket({
+                url: `ws://${window.location.host}:8080/ws`,
+                token: token,
+
+                onOpen: () => {
+                    updateConnectionStatus('connected');
+                    // 发送认证
+                    wsClient.send('auth', { token: token });
+                },
+
+                onClose: () => {
+                    updateConnectionStatus('disconnected');
+                    // 尝试重连
+                    setTimeout(() => {
+                        if (currentState !== AppState.MATCHED) {
+                            updateConnectionStatus('connecting');
+                            wsClient.reconnect();
+                        }
+                    }, 3000);
+                },
+
+                onError: (error) => {
+                    showNotification('连接错误', 'error');
+                    updateConnectionStatus('disconnected');
+                },
+
+                onEvent: (event, data) => {
+                    if (eventHandlers[event]) {
+                        eventHandlers[event](data);
+                    }
+                }
+            });
+
+            wsClient.connect();
+        }
+
+        // 按钮事件
+        elements.matchStartBtn.addEventListener('click', () => {
+            if (currentState === AppState.IDLE) {
+                wsClient.send('match.start', { token: token, score: score });
+                updateUI(AppState.MATCHING);
+            }
+        });
+
+        elements.matchCancelBtn.addEventListener('click', () => {
+            if (currentState === AppState.MATCHING) {
+                wsClient.send('match.cancel', { token: token });
+            }
+        });
+
+        elements.logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('gobang_token');
+            localStorage.removeItem('gobang_user');
+            wsClient.close();
+            window.location.href = 'login.html';
+        });
+
+        // 页面加载初始化
+        window.addEventListener('load', () => {
+            if (loadToken()) {
+                initWebSocket();
+                updateUI(AppState.IDLE);
+            }
+        });
+
+        // 页面关闭时清理
+        window.addEventListener('beforeunload', () => {
+            if (wsClient) {
+                wsClient.close();
+            }
+        });
+    </script>
+</body>
+</html>

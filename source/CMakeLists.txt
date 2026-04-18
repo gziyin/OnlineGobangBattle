@@ -57,6 +57,17 @@ else()
     message(FATAL_ERROR "jwt-cpp: not found. Please install jwt-cpp")
 endif()
 
+# WebSocket++（header-only 库，M3 Phase 2-A 新增）
+find_path(WEBSOCKETPP_INCLUDE_DIR websocketpp/version.hpp
+    PATHS /usr/include /usr/local/include
+)
+if(WEBSOCKETPP_INCLUDE_DIR)
+    include_directories(${WEBSOCKETPP_INCLUDE_DIR})
+    message(STATUS "WebSocket++: found at ${WEBSOCKETPP_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "WebSocket++: not found. Please install websocketpp-devel")
+endif()
+
 # MySQL 客户端库
 # 优先尝试 pkg-config，如果失败则手动指定路径
 pkg_check_modules(MYSQL mysqlclient)
@@ -80,50 +91,32 @@ endif()
 include_directories(${MYSQL_INCLUDE_DIRS})
 link_directories(${MYSQL_LIBRARY_DIRS})
 
-# ─── 测试目标：test_base ─────────────────────────────────────
-add_executable(test_base tests/test_base.cpp)
+function(add_gobang_test target_name source_file)
+    add_executable(${target_name} ${source_file})
+    target_link_libraries(${target_name} ${ARGN})
+    set_target_properties(${target_name} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+    )
+endfunction()
 
-# 链接库
-target_link_libraries(test_base
+add_gobang_test(test_base tests/test_base.cpp
     ${JSONCPP_LIBRARIES}
     Threads::Threads
 )
 
-# 输出目录
-set_target_properties(test_base PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
-)
-
-# ─── 测试目标：test_db_pool ──────────────────────────────────
-add_executable(test_db_pool tests/test_db_pool.cpp)
-
-target_link_libraries(test_db_pool
+add_gobang_test(test_db_pool tests/test_db_pool.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     Threads::Threads
 )
 
-set_target_properties(test_db_pool PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
-)
-
-# ─── 测试目标：test_user_table ──────────────────────────────────
-add_executable(test_user_table tests/test_user_table.cpp)
-
-target_link_libraries(test_user_table
+add_gobang_test(test_user_table tests/test_user_table.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     Threads::Threads
 )
 
-set_target_properties(test_user_table PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
-)
-
-# ─── 测试目标：test_security（Phase 3 新增）────────────────────────
-add_executable(test_security tests/test_security.cpp)
-
-target_link_libraries(test_security
+add_gobang_test(test_security tests/test_security.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${OPENSSL_LIBRARIES}
@@ -131,14 +124,7 @@ target_link_libraries(test_security
     Threads::Threads
 )
 
-set_target_properties(test_security PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
-)
-
-# ─── 测试目标：test_auth_api（Phase 4 新增）────────────────────────
-add_executable(test_auth_api tests/test_auth_api.cpp)
-
-target_link_libraries(test_auth_api
+add_gobang_test(test_auth_api tests/test_auth_api.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${OPENSSL_LIBRARIES}
@@ -146,8 +132,29 @@ target_link_libraries(test_auth_api
     Threads::Threads
 )
 
-set_target_properties(test_auth_api PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+add_gobang_test(test_online tests/test_online.cpp
+    ${JSONCPP_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+
+add_gobang_test(test_block_queue tests/test_block_queue.cpp
+    ${JSONCPP_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+
+add_gobang_test(test_matcher tests/test_matcher.cpp
+    ${JSONCPP_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+
+# M3 Phase 2-A: ConnectionManager 测试
+add_gobang_test(test_connection_manager tests/test_connection_manager.cpp
+    ${JSONCPP_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
 )
 
 # ─── 打印配置信息 ───────────────────────────────────────────
