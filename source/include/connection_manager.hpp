@@ -14,7 +14,7 @@
 namespace gobang {
 
 // WebSocket 服务器类型定义
-typedef websocketpp::server<websocketpp::config::asio> WebsocketServer;
+typedef websocketpp::server<websocketpp::config::asio_no_tls> WebsocketServer;
 typedef websocketpp::connection_hdl WebsocketConnectionHdl;
 
 /**
