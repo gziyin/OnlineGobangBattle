@@ -48,7 +48,7 @@ std::string join_requested_subprotocols(
     return oss.str();
 }
 
-void print_handshake_details(const char* tag, connection_hdl hdl) {
+void print_request_details(const char* tag, connection_hdl hdl) {
     try {
         auto con = g_server.get_con_from_hdl(hdl);
         const std::string resource = con->get_resource();
@@ -68,6 +68,32 @@ void print_handshake_details(const char* tag, connection_hdl hdl) {
                   << std::endl;
     } catch (const std::exception& e) {
         std::cout << "[" << tag << "] failed to inspect handshake: "
+                  << e.what() << std::endl;
+    }
+}
+
+void print_connection_failure(const char* tag, connection_hdl hdl) {
+    try {
+        auto con = g_server.get_con_from_hdl(hdl);
+        std::cout << "[" << tag << "] ec=" << con->get_ec().message()
+                  << ", local_close_code=" << con->get_local_close_code()
+                  << ", local_close_reason=" << con->get_local_close_reason()
+                  << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "[" << tag << "] failed to inspect failed connection: "
+                  << e.what() << std::endl;
+    }
+}
+
+void print_connection_close(const char* tag, connection_hdl hdl) {
+    try {
+        auto con = g_server.get_con_from_hdl(hdl);
+        std::cout << "[" << tag << "] remote_close_code="
+                  << con->get_remote_close_code()
+                  << ", remote_close_reason=" << con->get_remote_close_reason()
+                  << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "[" << tag << "] failed to inspect close details: "
                   << e.what() << std::endl;
     }
 }
@@ -112,7 +138,7 @@ int main() {
 
     // 设置验证处理器 - 接受浏览器常见的 /ws 资源形态
     g_server.set_validate_handler([](connection_hdl hdl) {
-        print_handshake_details("validate", hdl);
+        print_request_details("validate", hdl);
 
         auto con = g_server.get_con_from_hdl(hdl);
         std::string resource = con->get_resource();
@@ -127,46 +153,26 @@ int main() {
     // 设置 HTTP 处理器 - 非 WebSocket 请求返回信息
     g_server.set_http_handler([](connection_hdl hdl) {
         auto con = g_server.get_con_from_hdl(hdl);
-        print_handshake_details("http", hdl);
+        print_request_details("http", hdl);
         con->set_body("WebSocket server is running. Use /ws endpoint.");
         con->set_status(websocketpp::http::status_code::ok);
     });
 
     // 设置失败日志
     g_server.set_fail_handler([](connection_hdl hdl) {
-        print_handshake_details("fail", hdl);
-        try {
-            auto con = g_server.get_con_from_hdl(hdl);
-            std::cout << "[fail] Connection failed: " << con->get_ec().message()
-                      << ", local_close_code=" << con->get_local_close_code()
-                      << ", local_close_reason=" << con->get_local_close_reason()
-                      << std::endl;
-        } catch (const std::exception& e) {
-            std::cout << "[fail] Failed to inspect connection error: "
-                      << e.what() << std::endl;
-        }
+        print_connection_failure("fail", hdl);
     });
 
     // 设置打开日志
     g_server.set_open_handler([&](connection_hdl hdl) {
-        print_handshake_details("open", hdl);
+        print_request_details("open", hdl);
         std::cout << "[open] WebSocket connection opened" << std::endl;
         g_ws_handler.on_open(hdl);
     });
 
     // 设置关闭日志
     g_server.set_close_handler([&](connection_hdl hdl) {
-        print_handshake_details("close", hdl);
-        try {
-            auto con = g_server.get_con_from_hdl(hdl);
-            std::cout << "[close] WebSocket connection closed"
-                      << ", remote_close_code=" << con->get_remote_close_code()
-                      << ", remote_close_reason=" << con->get_remote_close_reason()
-                      << std::endl;
-        } catch (const std::exception& e) {
-            std::cout << "[close] Failed to inspect close details: "
-                      << e.what() << std::endl;
-        }
+        print_connection_close("close", hdl);
         g_ws_handler.on_close(hdl);
     });
 
