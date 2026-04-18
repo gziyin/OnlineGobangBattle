@@ -100,8 +100,10 @@ private:
     std::atomic<uint64_t> _request_id_counter;
     std::atomic<int64_t> _room_id_counter;
 
-    static const int MATCH_TIMEOUT_MS = 30000;
-    static const int MATCH_LOOP_IDLE_MS = 10;
+    enum {
+        MATCH_TIMEOUT_MS = 30000,
+        MATCH_LOOP_IDLE_MS = 10
+    };
 };
 
 inline Matcher::Matcher()
