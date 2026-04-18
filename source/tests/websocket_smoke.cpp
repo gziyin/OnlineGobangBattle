@@ -183,8 +183,10 @@ int main() {
 
     // 监听端口
     try {
-        g_server.listen(8080);
-        std::cout << "Listening on port 8080..." << std::endl;
+        websocketpp::lib::asio::ip::tcp::endpoint endpoint(
+            websocketpp::lib::asio::ip::address_v4::any(), 8080);
+        g_server.listen(endpoint);
+        std::cout << "Listening on 0.0.0.0:8080 (IPv4)..." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Listen failed: " << e.what() << std::endl;
         std::cerr << "Port 8080 may be in use. Smoke test passes compilation check." << std::endl;
