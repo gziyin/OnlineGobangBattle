@@ -157,6 +157,13 @@ add_gobang_test(test_connection_manager tests/test_connection_manager.cpp
     Threads::Threads
 )
 
+# M3 Phase 2-B: WebSocket 接线层 smoke 测试（最小服务端入口）
+add_gobang_test(websocket_smoke tests/websocket_smoke.cpp
+    ${JSONCPP_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    Threads::Threads
+)
+
 # ─── 打印配置信息 ───────────────────────────────────────────
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")

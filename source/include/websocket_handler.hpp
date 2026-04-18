@@ -24,11 +24,12 @@ namespace gobang {
 class WebSocketHandler {
 public:
     /**
-     * @brief 初始化，注入各管理器
+     * @brief 初始化，注入各管理器和 WebSocket 服务器
      */
     void init(ConnectionManager* conn_mgr,
               OnlineManager* online_mgr,
-              MatcherInterface* matcher);
+              MatcherInterface* matcher,
+              WebsocketServer* server);
 
     /**
      * @brief 处理 WebSocket 连接建立
@@ -102,10 +103,12 @@ private:
 
 inline void WebSocketHandler::init(ConnectionManager* conn_mgr,
                                     OnlineManager* online_mgr,
-                                    MatcherInterface* matcher) {
+                                    MatcherInterface* matcher,
+                                    WebsocketServer* server) {
     _conn_mgr = conn_mgr;
     _online_mgr = online_mgr;
     _matcher = matcher;
+    _server = server;
 
     // 设置匹配成功回调
     if (_matcher) {

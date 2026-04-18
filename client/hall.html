@@ -413,8 +413,10 @@
         let wsClient = null;
 
         function initWebSocket() {
+            // 使用 hostname 避免端口重复问题
+            const wsHost = window.location.hostname;
             wsClient = new GobangWebSocket({
-                url: `ws://${window.location.host}:8080/ws`,
+                url: `ws://${wsHost}:8080/ws`,
                 token: token,
 
                 onOpen: () => {
