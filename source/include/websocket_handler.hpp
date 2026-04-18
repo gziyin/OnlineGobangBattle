@@ -1,34 +1,15 @@
 #pragma once
 #include <string>
-#include <functional>
 #include <json/json.h>
 
 #include "connection_manager.hpp"
+#include "matcher_interface.hpp"
 #include "online.hpp"
 #include "security.hpp"
 #include "util.hpp"
 #include "logger.hpp"
 
 namespace gobang {
-
-// 匹配结果回调类型（由 Matcher 提供）
-struct MatchResult {
-    int64_t room_id;
-    int64_t player1_id;
-    int64_t player2_id;
-    int     player1_color; // 1 = black, 2 = white
-    int     player2_color;
-};
-using MatchCallback = std::function<void(const MatchResult&)>;
-
-// Matcher 接口占位（等待 Codex 提供完整实现）
-class MatcherInterface {
-public:
-    virtual bool enqueue(int64_t user_id, int score) = 0;
-    virtual bool cancel(int64_t user_id) = 0;
-    virtual void on_disconnect(int64_t user_id) = 0;
-    virtual void set_match_callback(MatchCallback cb) = 0;
-};
 
 /**
  * @brief WebSocket 事件处理器

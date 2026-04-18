@@ -5,13 +5,13 @@
 #include <chrono>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
 
 #include "block_queue.hpp"
+#include "matcher_interface.hpp"
 #include "online.hpp"
 
 namespace gobang {
@@ -35,31 +35,17 @@ struct MatchRequest {
     }
 };
 
-struct MatchResult {
-    int64_t room_id;
-    int64_t player1_id;
-    int64_t player2_id;
-    int player1_color;
-    int player2_color;
-
-    MatchResult()
-        : room_id(0), player1_id(0), player2_id(0), player1_color(0), player2_color(0) {
-    }
-};
-
-typedef std::function<void(const MatchResult&)> MatchCallback;
-
-class Matcher {
+class Matcher : public MatcherInterface {
 public:
     Matcher();
-    ~Matcher();
+    ~Matcher() override;
 
     void init(OnlineManager* online_mgr);
-    void set_match_callback(MatchCallback cb);
+    void set_match_callback(MatchCallback cb) override;
 
-    bool enqueue(int64_t user_id, int score);
-    bool cancel(int64_t user_id);
-    void on_disconnect(int64_t user_id);
+    bool enqueue(int64_t user_id, int score) override;
+    bool cancel(int64_t user_id) override;
+    void on_disconnect(int64_t user_id) override;
 
     void start();
     void stop();
