@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(online_gobang CXX)
+include(CheckCXXSourceCompiles)
 
 # C++11 标准
 set(CMAKE_CXX_STANDARD 11)
@@ -10,13 +11,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
 # 获取项目根目录绝对路径
 get_filename_component(SOURCE_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
-
-# 生成 config.h 文件（包含路径配置）
-configure_file(
-    "${CMAKE_SOURCE_DIR}/config.h.in"
-    "${CMAKE_BINARY_DIR}/config.h"
-    @ONLY
-)
 
 # 包含目录（含生成的 config.h）
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -67,6 +61,46 @@ if(WEBSOCKETPP_INCLUDE_DIR)
 else()
     message(FATAL_ERROR "WebSocket++: not found. Please install websocketpp-devel")
 endif()
+
+# 探测当前 WebSocket++ 是否支持 config::asio_no_tls（仅检测头文件不可靠）
+set(_gobang_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+set(CMAKE_REQUIRED_INCLUDES "${WEBSOCKETPP_INCLUDE_DIR}")
+check_cxx_source_compiles("
+    #include <websocketpp/server.hpp>
+    #include <websocketpp/config/asio_no_tls.hpp>
+    int main() {
+        websocketpp::server<websocketpp::config::asio_no_tls> s;
+        (void)s;
+        return 0;
+    }"
+    GOBANG_HAS_WEBSOCKETPP_ASIO_NO_TLS
+)
+check_cxx_source_compiles("
+    #include <websocketpp/server.hpp>
+    #include <websocketpp/config/asio.hpp>
+    int main() {
+        websocketpp::server<websocketpp::config::asio> s;
+        (void)s;
+        return 0;
+    }"
+    GOBANG_HAS_WEBSOCKETPP_ASIO
+)
+set(CMAKE_REQUIRED_INCLUDES "${_gobang_saved_required_includes}")
+
+if(GOBANG_HAS_WEBSOCKETPP_ASIO_NO_TLS)
+    message(STATUS "WebSocket++ config: using asio_no_tls")
+elseif(GOBANG_HAS_WEBSOCKETPP_ASIO)
+    message(STATUS "WebSocket++ config: using asio")
+else()
+    message(FATAL_ERROR "WebSocket++ config probe failed: neither asio_no_tls nor asio is usable")
+endif()
+
+# 生成 config.h 文件（包含路径配置与能力探测结果）
+configure_file(
+    "${CMAKE_SOURCE_DIR}/config.h.in"
+    "${CMAKE_BINARY_DIR}/config.h"
+    @ONLY
+)
 
 # MySQL 客户端库
 # 优先尝试 pkg-config，如果失败则手动指定路径
