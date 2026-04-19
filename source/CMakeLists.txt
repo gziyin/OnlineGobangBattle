@@ -64,7 +64,10 @@ endif()
 
 # 探测当前 WebSocket++ 是否支持 config::asio_no_tls（仅检测头文件不可靠）
 set(_gobang_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+set(_gobang_saved_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
 set(CMAKE_REQUIRED_INCLUDES "${WEBSOCKETPP_INCLUDE_DIR}")
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+message(STATUS "WebSocket++ config probe mode: compile-only (STATIC_LIBRARY)")
 check_cxx_source_compiles("
     #include <websocketpp/server.hpp>
     #include <websocketpp/config/asio_no_tls.hpp>
@@ -86,6 +89,7 @@ check_cxx_source_compiles("
     GOBANG_HAS_WEBSOCKETPP_ASIO
 )
 set(CMAKE_REQUIRED_INCLUDES "${_gobang_saved_required_includes}")
+set(CMAKE_TRY_COMPILE_TARGET_TYPE "${_gobang_saved_try_compile_target_type}")
 
 if(GOBANG_HAS_WEBSOCKETPP_ASIO_NO_TLS)
     message(STATUS "WebSocket++ config: using asio_no_tls")
