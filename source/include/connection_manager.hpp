@@ -9,12 +9,26 @@
 // WebSocket++ 连接句柄类型定义
 // 此文件是唯一暴露 connection_hdl 的业务头文件
 #include <websocketpp/server.hpp>
+
+#if defined(__has_include)
+#if __has_include(<websocketpp/config/asio_no_tls.hpp>)
 #include <websocketpp/config/asio_no_tls.hpp>
+#define GOBANG_WEBSOCKETPP_HAS_ASIO_NO_TLS 1
+#else
+#include <websocketpp/config/asio.hpp>
+#endif
+#else
+#include <websocketpp/config/asio.hpp>
+#endif
 
 namespace gobang {
 
 // WebSocket 服务器类型定义
+#ifdef GOBANG_WEBSOCKETPP_HAS_ASIO_NO_TLS
 typedef websocketpp::server<websocketpp::config::asio_no_tls> WebsocketServer;
+#else
+typedef websocketpp::server<websocketpp::config::asio> WebsocketServer;
+#endif
 typedef websocketpp::connection_hdl WebsocketConnectionHdl;
 
 /**
