@@ -164,6 +164,14 @@ add_gobang_test(websocket_smoke tests/websocket_smoke.cpp
     Threads::Threads
 )
 
+# M3 Phase 2-C: WebSocket M3 事件流联调回归
+add_gobang_test(test_websocket_m3_flow tests/test_websocket_m3_flow.cpp
+    ${JSONCPP_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+
 # ─── 打印配置信息 ───────────────────────────────────────────
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
