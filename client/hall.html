@@ -347,7 +347,9 @@
         // WebSocket 事件处理器
         const eventHandlers = {
             'match.waiting': (data) => {
-                updateUI(AppState.MATCHING);
+                if (currentState !== AppState.MATCHING) {
+                    updateUI(AppState.MATCHING);
+                }
                 showNotification('已进入匹配队列', 'success');
             },
 
@@ -377,8 +379,8 @@
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
-                } else if (data.code === 4003) {
-                    // 不在空闲状态
+                } else if (data.code === 4003 || data.code === 4004 || data.code === 4005) {
+                    // 状态错误：回到 IDLE
                     updateUI(AppState.IDLE);
                 }
             },
@@ -415,6 +417,11 @@
         let shouldReconnect = true;
 
         function initWebSocket() {
+            // 已连接时直接返回，不重复建立连接
+            if (wsClient && wsClient.isConnected()) {
+                return;
+            }
+
             // 使用 hostname 避免端口重复问题
             const wsHost = window.location.hostname || '127.0.0.1';
             wsClient = new GobangWebSocket({
@@ -455,7 +462,9 @@
         elements.matchStartBtn.addEventListener('click', () => {
             if (currentState === AppState.IDLE) {
                 if (wsClient.send('match.start', { token: token, score: score })) {
-                    updateUI(AppState.MATCHING);
+                    // 发送成功，但不立即切状态，等待 match.waiting 确认
+                } else {
+                    showNotification('发送失败，请检查连接', 'error');
                 }
             }
         });
