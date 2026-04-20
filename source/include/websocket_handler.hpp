@@ -121,6 +121,7 @@ inline void WebSocketHandler::init(ConnectionManager* conn_mgr,
 }
 
 inline void WebSocketHandler::on_open(WebsocketConnectionHdl hdl) {
+    (void)hdl;
     LOG_DEBUG("WebSocketHandler: connection opened");
     // 连接建立时暂不做任何操作，等待认证事件
 }
@@ -262,6 +263,7 @@ inline std::string WebSocketHandler::handle_match_start(int64_t user_id, const J
 }
 
 inline std::string WebSocketHandler::handle_match_cancel(int64_t user_id, const Json::Value& data) {
+    (void)data;
     // 调用 Matcher 取消
     bool success = _matcher->cancel(user_id);
     if (!success) {
@@ -277,6 +279,8 @@ inline std::string WebSocketHandler::handle_match_cancel(int64_t user_id, const 
 }
 
 inline std::string WebSocketHandler::handle_ping(int64_t user_id, const Json::Value& data) {
+    (void)user_id;
+    (void)data;
     Json::Value resp_data;
     resp_data["timestamp"] = util::now_sec();
     return make_response("pong", resp_data);

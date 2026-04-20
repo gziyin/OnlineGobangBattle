@@ -347,6 +347,7 @@
         // WebSocket 事件处理器
         const eventHandlers = {
             'match.waiting': (data) => {
+                updateUI(AppState.MATCHING);
                 showNotification('已进入匹配队列', 'success');
             },
 
@@ -411,10 +412,11 @@
 
         // WebSocket 客户端
         let wsClient = null;
+        let shouldReconnect = true;
 
         function initWebSocket() {
             // 使用 hostname 避免端口重复问题
-            const wsHost = window.location.hostname;
+            const wsHost = window.location.hostname || '127.0.0.1';
             wsClient = new GobangWebSocket({
                 url: `ws://${wsHost}:8080/ws`,
                 token: token,
@@ -428,12 +430,10 @@
                 onClose: () => {
                     updateConnectionStatus('disconnected');
                     // 尝试重连
-                    setTimeout(() => {
-                        if (currentState !== AppState.MATCHED) {
-                            updateConnectionStatus('connecting');
-                            wsClient.reconnect();
-                        }
-                    }, 3000);
+                    if (shouldReconnect && currentState !== AppState.MATCHED) {
+                        updateConnectionStatus('connecting');
+                        wsClient.reconnect();
+                    }
                 },
 
                 onError: (error) => {
@@ -454,8 +454,9 @@
         // 按钮事件
         elements.matchStartBtn.addEventListener('click', () => {
             if (currentState === AppState.IDLE) {
-                wsClient.send('match.start', { token: token, score: score });
-                updateUI(AppState.MATCHING);
+                if (wsClient.send('match.start', { token: token, score: score })) {
+                    updateUI(AppState.MATCHING);
+                }
             }
         });
 
@@ -466,6 +467,7 @@
         });
 
         elements.logoutBtn.addEventListener('click', () => {
+            shouldReconnect = false;
             localStorage.removeItem('gobang_token');
             localStorage.removeItem('gobang_user');
             wsClient.close();
@@ -475,6 +477,7 @@
         // 页面加载初始化
         window.addEventListener('load', () => {
             if (loadToken()) {
+                shouldReconnect = true;
                 initWebSocket();
                 updateUI(AppState.IDLE);
             }
@@ -483,6 +486,7 @@
         // 页面关闭时清理
         window.addEventListener('beforeunload', () => {
             if (wsClient) {
+                shouldReconnect = false;
                 wsClient.close();
             }
         });

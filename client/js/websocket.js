@@ -38,6 +38,11 @@ class GobangWebSocket {
             return;
         }
 
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+            console.log('WebSocket connection is in progress');
+            return;
+        }
+
         try {
             this.ws = new WebSocket(this.url);
 
@@ -77,6 +82,11 @@ class GobangWebSocket {
     reconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.log('Max reconnect attempts reached');
+            return;
+        }
+
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+            console.log('WebSocket reconnect already in progress');
             return;
         }
 
