@@ -4,6 +4,8 @@
  *
  * 目标：验证 websocket_handler.hpp + matcher.hpp + connection_manager.hpp
  *       第一次进入真实编译链，确保接线闭环可编译。
+ *
+ * 扩展：集成 HTTP REST API（注册/登录）用于前端联调
  */
 
 #include <iostream>
@@ -15,6 +17,11 @@
 #include "online.hpp"
 #include "websocket_handler.hpp"
 #include "logger.hpp"
+#include "auth_handler.hpp"
+#include "db.hpp"
+#include "user_table.hpp"
+#include "security.hpp"
+#include "util.hpp"
 
 using websocketpp::connection_hdl;
 
@@ -106,6 +113,8 @@ gobang::ConnectionManager g_conn_mgr;
 gobang::OnlineManager g_online_mgr;
 gobang::Matcher g_matcher;
 gobang::WebSocketHandler g_ws_handler;
+gobang::DBPool g_db_pool;
+gobang::UserTable g_user_table;
 
 // 信号处理
 void on_signal(int sig) {
@@ -121,6 +130,18 @@ int main() {
 
     // 初始化日志
     gobang::Logger::instance().init("websocket_smoke.log");
+
+    // 加载配置并初始化数据库
+    try {
+        gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
+        gobang::util::validate_config(cfg);
+        g_db_pool.init(cfg);
+        g_user_table.init(&g_db_pool);
+        LOG_INFO("main: database initialized");
+    } catch (const std::exception& e) {
+        std::cerr << "DB init failed: " << e.what() << std::endl;
+        return 1;
+    }
 
     // 初始化各组件
     g_conn_mgr.init(&g_server);
@@ -150,12 +171,58 @@ int main() {
         return allowed;
     });
 
-    // 设置 HTTP 处理器 - 非 WebSocket 请求返回信息
+    // 设置 HTTP 处理器 - REST API 路由分发
     g_server.set_http_handler([](connection_hdl hdl) {
         auto con = g_server.get_con_from_hdl(hdl);
+        std::string method = con->get_request().get_method();
+        std::string resource = trim_query_and_fragment(con->get_resource());
+
         print_request_details("http", hdl);
-        con->set_body("WebSocket server is running. Use /ws endpoint.");
+
+        // CORS 预检
+        if (method == "OPTIONS") {
+            con->append_header("Access-Control-Allow-Origin", "*");
+            con->append_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+            con->append_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+            con->set_status(websocketpp::http::status_code::ok);
+            return;
+        }
+
+        std::string body = con->get_request_body();
+        Json::Value req_json, resp_json;
+        std::string errmsg;
+
+        if (method == "POST" && resource == "/api/v1/auth/register") {
+            if (!gobang::util::str_to_json(body, req_json, errmsg)) {
+                resp_json["success"] = false;
+                resp_json["message"] = "Invalid JSON: " + errmsg;
+            } else {
+                resp_json = gobang::auth::handle_register(
+                    g_user_table,
+                    req_json["username"].asString(),
+                    req_json["password"].asString());
+            }
+        } else if (method == "POST" && resource == "/api/v1/auth/login") {
+            if (!gobang::util::str_to_json(body, req_json, errmsg)) {
+                resp_json["success"] = false;
+                resp_json["message"] = "Invalid JSON: " + errmsg;
+            } else {
+                resp_json = gobang::auth::handle_login(
+                    g_user_table,
+                    req_json["username"].asString(),
+                    req_json["password"].asString());
+            }
+        } else {
+            con->append_header("Access-Control-Allow-Origin", "*");
+            con->set_status(websocketpp::http::status_code::not_found);
+            con->set_body("{\"success\":false,\"message\":\"Not Found\"}");
+            return;
+        }
+
+        con->append_header("Access-Control-Allow-Origin", "*");
+        con->append_header("Content-Type", "application/json; charset=utf-8");
         con->set_status(websocketpp::http::status_code::ok);
+        con->set_body(gobang::util::json_to_str(resp_json));
     });
 
     // 设置失败日志
@@ -191,7 +258,7 @@ int main() {
         std::cerr << "Listen failed: " << e.what() << std::endl;
         std::cerr << "Port 8080 may be in use. Smoke test passes compilation check." << std::endl;
         g_matcher.stop();
-        return 0;  // 编译验证通过即可
+        return 0;
     }
 
     // 注册信号处理
