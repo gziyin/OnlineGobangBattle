@@ -195,6 +195,7 @@ register_gobang_ctest(test_connection_manager unit)
 add_gobang_test(websocket_smoke tests/websocket_smoke.cpp
     ${JSONCPP_LIBRARIES}
     ${OPENSSL_LIBRARIES}
+    ${MYSQL_LIBRARIES}
     Threads::Threads
 )
 register_gobang_ctest(websocket_smoke smoke)
