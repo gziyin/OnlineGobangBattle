@@ -1,29 +1,31 @@
-# 五子棋服务器配置文件
-# '#' 开头的行为注释，会被忽略
+﻿# Online Gobang server configuration
+# Lines starting with # are comments.
 
-# —— 服务器 ————————————————————————————————
+# Server
 server_port     = 8080
 server_threads  = 4
 
-# —— 数据库 ————————————————————————————————
+# Database
+# Use your local database credentials.
 db_host         = 127.0.0.1
 db_port         = 3306
-db_user         = your_db_user      //需自行配置
-db_password     = your_db_password  //需自行配置
-db_name         = gobang_db         //需自行配置
+db_user         = your_db_user
+db_password     = your_db_password
+db_name         = gobang_db
 db_pool_size    = 10
 
-# —— 日志 ——————————————————————————————————
+# Logging
 log_file        = logs/server.log
 log_level       = INFO
 log_max_bytes   = 10485760
 
-# —— 游戏规则 ——————————————————————————————
+# Gameplay
 reconnect_timeout  = 60
 match_timeout      = 30
 heartbeat_interval = 30
 
-# —— JWT 配置（Phase 3 新增）———————————————
-jwt_secret   = "CHANGE_ME_USE_RANDOM_STRING_AT_LEAST_32_CHARS"
+# JWT
+# Must be at least 32 chars and contain at least two character classes.
+jwt_secret   = "CHANGE_ME_TO_A_RANDOM_SECRET_32+_CHARS!"
 jwt_issuer   = "online_gobang"
 jwt_expire   = 86400

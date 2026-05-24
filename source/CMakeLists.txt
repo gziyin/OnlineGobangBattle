@@ -1,30 +1,23 @@
-cmake_minimum_required(VERSION 3.10)
+﻿cmake_minimum_required(VERSION 3.10)
 project(online_gobang CXX)
 include(CheckCXXSourceCompiles)
 
-# C++11 标准
+enable_testing()
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# 编译选项
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
-# 获取项目根目录绝对路径
 get_filename_component(SOURCE_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
-
-# 包含目录（含生成的 config.h）
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${CMAKE_BINARY_DIR})
 
-# JsonCpp 库查找
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 include_directories(${JSONCPP_INCLUDE_DIRS})
 
-# pthread 库
 find_package(Threads REQUIRED)
 
-# GTest 库（Phase 3 新增）
 find_package(GTest)
 if(GTEST_FOUND)
     include_directories(${GTEST_INCLUDE_DIRS})
@@ -33,7 +26,6 @@ else()
     message(FATAL_ERROR "GTest: not found. Please install gtest-devel")
 endif()
 
-# OpenSSL 库（Phase 3 新增）
 pkg_check_modules(OPENSSL openssl)
 if(OPENSSL_FOUND)
     include_directories(${OPENSSL_INCLUDE_DIRS})
@@ -42,7 +34,6 @@ else()
     message(FATAL_ERROR "OpenSSL: not found. Please install openssl-devel")
 endif()
 
-# jwt-cpp（header-only 库，Phase 3 新增）
 set(JWT_CPP_INCLUDE_DIR "/usr/local/include")
 if(EXISTS ${JWT_CPP_INCLUDE_DIR}/jwt-cpp/jwt.h)
     include_directories(${JWT_CPP_INCLUDE_DIR})
@@ -51,7 +42,6 @@ else()
     message(FATAL_ERROR "jwt-cpp: not found. Please install jwt-cpp")
 endif()
 
-# WebSocket++（header-only 库，M3 Phase 2-A 新增）
 find_path(WEBSOCKETPP_INCLUDE_DIR websocketpp/version.hpp
     PATHS /usr/include /usr/local/include
 )
@@ -62,7 +52,6 @@ else()
     message(FATAL_ERROR "WebSocket++: not found. Please install websocketpp-devel")
 endif()
 
-# 探测当前 WebSocket++ 是否支持 config::asio_no_tls（仅检测头文件不可靠）
 set(_gobang_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
 set(_gobang_saved_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
 set(CMAKE_REQUIRED_INCLUDES "${WEBSOCKETPP_INCLUDE_DIR}")
@@ -99,18 +88,14 @@ else()
     message(FATAL_ERROR "WebSocket++ config probe failed: neither asio_no_tls nor asio is usable")
 endif()
 
-# 生成 config.h 文件（包含路径配置与能力探测结果）
 configure_file(
     "${CMAKE_SOURCE_DIR}/config.h.in"
     "${CMAKE_BINARY_DIR}/config.h"
     @ONLY
 )
 
-# MySQL 客户端库
-# 优先尝试 pkg-config，如果失败则手动指定路径
 pkg_check_modules(MYSQL mysqlclient)
 if(NOT MYSQL_FOUND)
-    # 手动指定 MySQL 路径（Rocky 9 默认安装路径）
     find_path(MYSQL_INCLUDE_DIR mysql.h PATHS /usr/include/mysql /usr/local/include/mysql)
     find_library(MYSQL_LIBRARY mysqlclient PATHS /usr/lib64/mysql /usr/lib/mysql /usr/local/lib64)
     if(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
@@ -122,7 +107,6 @@ if(NOT MYSQL_FOUND)
         message(FATAL_ERROR "MySQL: not found. Please install mysql-devel package.")
     endif()
 else()
-    # pkg-config 找到了，但需要补充库路径（Rocky 9 上常见）
     set(MYSQL_LIBRARY_DIRS ${MYSQL_LIBRARY_DIRS} /usr/lib64/mysql)
     message(STATUS "MySQL: found via pkg-config at ${MYSQL_INCLUDE_DIRS}")
 endif()
@@ -137,22 +121,30 @@ function(add_gobang_test target_name source_file)
     )
 endfunction()
 
+function(register_gobang_ctest target_name test_label)
+    add_test(NAME ${target_name} COMMAND $<TARGET_FILE:${target_name}>)
+    set_tests_properties(${target_name} PROPERTIES LABELS ${test_label})
+endfunction()
+
 add_gobang_test(test_base tests/test_base.cpp
     ${JSONCPP_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_base smoke)
 
 add_gobang_test(test_db_pool tests/test_db_pool.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_db_pool integration)
 
 add_gobang_test(test_user_table tests/test_user_table.cpp
     ${JSONCPP_LIBRARIES}
     ${MYSQL_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_user_table integration)
 
 add_gobang_test(test_security tests/test_security.cpp
     ${JSONCPP_LIBRARIES}
@@ -161,6 +153,7 @@ add_gobang_test(test_security tests/test_security.cpp
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_security unit)
 
 add_gobang_test(test_auth_api tests/test_auth_api.cpp
     ${JSONCPP_LIBRARIES}
@@ -169,48 +162,51 @@ add_gobang_test(test_auth_api tests/test_auth_api.cpp
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_auth_api integration)
 
 add_gobang_test(test_online tests/test_online.cpp
     ${JSONCPP_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_online unit)
 
 add_gobang_test(test_block_queue tests/test_block_queue.cpp
     ${JSONCPP_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_block_queue unit)
 
 add_gobang_test(test_matcher tests/test_matcher.cpp
     ${JSONCPP_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_matcher unit)
 
-# M3 Phase 2-A: ConnectionManager 测试
 add_gobang_test(test_connection_manager tests/test_connection_manager.cpp
     ${JSONCPP_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_connection_manager unit)
 
-# M3 Phase 2-B: WebSocket 接线层 smoke 测试（最小服务端入口）
 add_gobang_test(websocket_smoke tests/websocket_smoke.cpp
     ${JSONCPP_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(websocket_smoke smoke)
 
-# M3 Phase 2-C: WebSocket M3 事件流联调回归
 add_gobang_test(test_websocket_m3_flow tests/test_websocket_m3_flow.cpp
     ${JSONCPP_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
+register_gobang_ctest(test_websocket_m3_flow integration)
 
-# ─── 打印配置信息 ───────────────────────────────────────────
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

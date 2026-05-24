@@ -1,0 +1,45 @@
+﻿# M4 接口冻结草案（基于 M3）
+
+## 1. 冻结目标
+
+在进入 M4 房间逻辑实现前，冻结 M3 已上线/已联调事件契约，保证前后端兼容。
+
+## 2. 冻结范围
+
+### 2.1 WebSocket 事件名（固定）
+
+- 客户端上行：`match.start`、`match.cancel`、`game.move`、`game.chat`、`game.giveup`、`ping`
+- 服务端下行：`match.waiting`、`match.success`、`game.start`、`game.move`、`game.chat`、`game.over`、`game.reconnect`、`error`、`pong`
+
+### 2.2 状态语义（固定）
+
+`OnlineStatus`:
+
+- `OFFLINE`
+- `HALL_IDLE`
+- `MATCHING`
+- `IN_ROOM`
+
+## 3. 兼容性约束
+
+- 禁止删除字段。
+- 禁止重命名字段。
+- 禁止改变现有字段语义或类型。
+- 仅允许新增可选字段，且旧客户端可忽略。
+
+## 4. 状态流转基线
+
+- `OFFLINE -> HALL_IDLE`：认证并进入大厅
+- `HALL_IDLE -> MATCHING`：收到 `match.start`
+- `MATCHING -> HALL_IDLE`：收到 `match.cancel` 或匹配失败回退
+- `MATCHING -> IN_ROOM`：收到 `match.success`
+- `IN_ROOM -> HALL_IDLE`：对局结束并返回大厅
+- 任意状态可转 `OFFLINE`：连接断开或退出
+
+## 5. 变更流程
+
+若必须调整冻结范围，需在同一 PR 同步更新：
+
+1. 本文档
+2. `plan_and_review/project_plan/current/project_plan_v2.2.md`
+3. `plan_and_review/README.md`
