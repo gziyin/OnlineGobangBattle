@@ -187,6 +187,7 @@ register_gobang_ctest(test_matcher unit)
 
 add_gobang_test(test_connection_manager tests/test_connection_manager.cpp
     ${JSONCPP_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
 )
