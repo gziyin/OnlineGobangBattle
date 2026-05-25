@@ -61,7 +61,8 @@ public:
         _server.listen(endpoint);
         _server.start_accept();
 
-        _port = _server.get_local_endpoint().port();
+        websocketpp::lib::error_code ec;
+        _port = _server.get_local_endpoint(ec).port();
 
         _thread = std::thread([this]() { _server.run(); });
     }
