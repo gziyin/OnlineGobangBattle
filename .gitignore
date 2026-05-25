@@ -41,4 +41,7 @@ Thumbs.db
 %SystemDrive%/
 .deepseek/
 .claude/
+.agents/
+.codex/
+.trellis/
 NVIDIA Corporation/

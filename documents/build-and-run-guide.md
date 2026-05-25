@@ -47,7 +47,7 @@ USE gobang_db;
 CREATE TABLE user (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(32) UNIQUE NOT NULL,
-    password_hash VARCHAR(128) NOT NULL,
+    password_hash VARCHAR(512) NOT NULL,
     score INT UNSIGNED DEFAULT 1500,
     total_count INT UNSIGNED DEFAULT 0,
     win_count INT UNSIGNED DEFAULT 0,
@@ -58,6 +58,8 @@ CREATE TABLE user (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
+
+> 或使用初始化脚本一键执行：`./scripts/init_db.sh`
 
 ## 3. 配置文件
 
