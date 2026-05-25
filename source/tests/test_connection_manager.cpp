@@ -148,6 +148,13 @@ public:
             _cv.notify_all();
         });
 
+        _client.set_message_handler(
+            [this](connection_hdl, TestClient::message_ptr msg) {
+                std::lock_guard<std::mutex> lock(_msg_mtx);
+                _received.push_back(msg->get_payload());
+                _msg_cv.notify_all();
+            });
+
         websocketpp::lib::error_code ec;
         auto con = _client.get_connection(uri, ec);
         if (ec) return false;
@@ -177,6 +184,13 @@ public:
         return _hdl;
     }
 
+    std::vector<std::string> wait_for_messages(size_t count, int timeout_ms = 2000) {
+        std::unique_lock<std::mutex> lock(_msg_mtx);
+        _msg_cv.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+                         [this, count]() { return _received.size() >= count; });
+        return _received;
+    }
+
 private:
     TestClient _client;
     std::thread _thread;
@@ -184,6 +198,9 @@ private:
 
     std::mutex _mtx;
     std::condition_variable _cv;
+    std::mutex _msg_mtx;
+    std::condition_variable _msg_cv;
+    std::vector<std::string> _received;
     bool _opened = false;
     bool _failed = false;
 };
@@ -280,10 +297,9 @@ TEST_F(ConnectionManagerTest, SendSuccess) {
     std::string msg = "{\"event\":\"test\"}";
     EXPECT_TRUE(mgr.send(1001, msg));
 
-    // 服务器端应收到 ConnectionManager 发出的消息
-    ASSERT_TRUE(server.wait_for_messages(1));
-    auto msgs = server.received_messages();
-    EXPECT_EQ(msgs.size(), 1u);
+    // 客户端应收到 ConnectionManager 发出的消息
+    auto msgs = client.wait_for_messages(1);
+    ASSERT_GE(msgs.size(), 1u);
     EXPECT_EQ(msgs[0], msg);
 
     client.close();
