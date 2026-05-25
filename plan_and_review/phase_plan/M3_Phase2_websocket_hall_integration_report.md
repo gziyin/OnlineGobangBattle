@@ -111,7 +111,7 @@ No tests were found!!!
 目标是确认 `auth -> ping -> match.start -> match.cancel` 这条最小事件流在运行期也成立，而不仅仅是编译通过。
 
 第二步，运行：
-
+    
 ```bash
 ./bin/websocket_smoke
 ```
