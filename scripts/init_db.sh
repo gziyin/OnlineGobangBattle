@@ -32,6 +32,22 @@ if ! command -v mysql &>/dev/null; then
     exit 1
 fi
 
+# --- check MySQL service is running ---
+if [[ "$DB_HOST" == "127.0.0.1" || "$DB_HOST" == "localhost" ]]; then
+    if command -v systemctl &>/dev/null; then
+        if ! systemctl is-active --quiet mysql 2>/dev/null; then
+            echo "[init_db] MySQL service is not running, attempting to start..."
+            if sudo systemctl start mysql 2>/dev/null; then
+                echo "[init_db] MySQL service started."
+            else
+                echo "[init_db] ERROR: failed to start MySQL service."
+                echo "[init_db] Try: sudo systemctl start mysql"
+                exit 1
+            fi
+        fi
+    fi
+fi
+
 if ! mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" ${DB_PASS:+-p"$DB_PASS"} -e "SELECT 1" &>/dev/null; then
     echo "[init_db] ERROR: cannot connect to MySQL at $DB_HOST:$DB_PORT as $DB_USER"
     echo "[init_db] Check that MySQL is running and credentials in server.conf are correct."

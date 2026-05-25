@@ -26,7 +26,7 @@ git check-ignore -v source/build/* source/logs/* logs/* %SystemDrive%/* .deepsee
 - 先保证构建与测试入口可复现，再考虑后续扩展。
 - 文档必须描述真实代码状态，避免“计划领先于实现”。
 
-## 5. 远程提交（GitHub + Gitee）
+## 5. 远程提交和拉取（GitHub + Gitee）
 
 ```bash
 # 推送到 GitHub
@@ -37,4 +37,13 @@ git push gitee main
 
 # 两个都推
 git push origin main && git push gitee main
+```
+
+```bash
+# 从 Gitee 拉取
+git pull origin main
+
+# 从 GitHub 拉取
+git pull github main
+
 ```
