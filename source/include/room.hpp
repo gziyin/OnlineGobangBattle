@@ -153,7 +153,7 @@ public:
         if (check_win(row, col, color)) {
             status_ = RoomStatus::FINISHED;
             result_ = (color == PieceColor::BLACK) ? GameResult::BLACK_WIN : GameResult::WHITE_WIN;
-            LOG_INFO("房间 %s 游戏结束，玩家 %lld 获胜", room_id_.c_str(), static_cast<long long>(user_id));
+            LOG_INFO("房间 " << room_id_ << " 游戏结束，玩家 " << user_id << " 获胜");
             return result_;
         }
 
@@ -178,7 +178,7 @@ public:
         status_ = RoomStatus::FINISHED;
         result_ = (players_[idx].color == PieceColor::BLACK)
                   ? GameResult::WHITE_WIN : GameResult::BLACK_WIN;
-        LOG_INFO("房间 %s 玩家 %lld 认输", room_id_.c_str(), static_cast<long long>(user_id));
+        LOG_INFO("房间 " << room_id_ << " 玩家 " << user_id << " 认输");
         return result_;
     }
 
@@ -256,8 +256,7 @@ public:
         user_room_map_[player2_id] = room_id;
         rooms_[room_id] = std::move(room);
 
-        LOG_INFO("房间创建成功: %s, 玩家: %lld vs %lld",
-                 room_id.c_str(), static_cast<long long>(player1_id), static_cast<long long>(player2_id));
+        LOG_INFO("房间创建成功: " << room_id << ", 玩家: " << player1_id << " vs " << player2_id);
         return room_id;
     }
 
@@ -290,7 +289,7 @@ public:
             }
         }
         rooms_.erase(it);
-        LOG_INFO("房间销毁: %s", room_id.c_str());
+        LOG_INFO("房间销毁: " << room_id);
     }
 
     size_t room_count() const {

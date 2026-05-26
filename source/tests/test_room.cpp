@@ -22,11 +22,11 @@ protected:
         bool black_turn = true;
         while (bi < black_moves.size() || wi < white_moves.size()) {
             if (black_turn && bi < black_moves.size()) {
-                auto [r, c] = black_moves[bi++];
-                room_->place_piece(1001, r, c);
+                room_->place_piece(1001, black_moves[bi].first, black_moves[bi].second);
+                ++bi;
             } else if (!black_turn && wi < white_moves.size()) {
-                auto [r, c] = white_moves[wi++];
-                room_->place_piece(1002, r, c);
+                room_->place_piece(1002, white_moves[wi].first, white_moves[wi].second);
+                ++wi;
             }
             black_turn = !black_turn;
         }
