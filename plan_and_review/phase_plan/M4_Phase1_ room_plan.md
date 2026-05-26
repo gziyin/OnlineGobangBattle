@@ -1,5 +1,9 @@
 # M4 Phase 1 实现计划：room.hpp 游戏房间管理模块
 
+> **状态**: ✅ 已完成  
+> **完成日期**: 2026-05-26  
+> **提交**: `b52ce33` feat(M4): Phase 1 游戏房间管理模块 room.hpp
+
 ## Context
 
 M3 阶段已完成在线状态管理、连接管理、匹配器和 WebSocket 事件框架。M4 目标是实现完整对战闭环。Phase 1 是 M4 的第一步，实现 `room.hpp` 游戏房间管理模块，为后续 Phase 2（游戏控制器）提供基础。
@@ -18,7 +22,7 @@ M3 阶段已完成在线状态管理、连接管理、匹配器和 WebSocket 事
 
 ---
 
-## 一、room.hpp 设计
+## 一、room.hpp 设计 ✅
 
 ### 头文件依赖
 
@@ -79,7 +83,7 @@ M3 阶段已完成在线状态管理、连接管理、匹配器和 WebSocket 事
 
 ---
 
-## 二、关键算法
+## 二、关键算法 ✅
 
 ### 胜负判定 check_win
 
@@ -98,7 +102,7 @@ M3 阶段已完成在线状态管理、连接管理、匹配器和 WebSocket 事
 
 ---
 
-## 三、test_room.cpp 测试用例
+## 三、test_room.cpp 测试用例 ✅
 
 使用 GTest 风格。Fixture `GameRoomTest` 在 SetUp 中创建房间 (player1=1001 黑, player2=1002 白)。
 
@@ -153,7 +157,7 @@ M3 阶段已完成在线状态管理、连接管理、匹配器和 WebSocket 事
 
 ---
 
-## 四、CMakeLists.txt 修改
+## 四、CMakeLists.txt 修改 ✅
 
 在第 210 行（`register_gobang_ctest(test_websocket_m3_flow integration)`）之后插入：
 
@@ -168,7 +172,7 @@ register_gobang_ctest(test_room unit)
 
 ---
 
-## 五、注意事项
+## 五、注意事项 ✅
 
 1. **C++11**：不能用 `std::make_unique`，用 `std::unique_ptr<T>(new T(...))`
 2. **header-only**：所有实现 inline 写在头文件中
@@ -178,7 +182,7 @@ register_gobang_ctest(test_room unit)
 
 ---
 
-## 六、实现顺序
+## 六、实现顺序 ✅
 
 1. room.hpp 枚举 + PlayerInfo 结构体
 2. GameRoom 构造函数 + 查询接口
@@ -191,7 +195,7 @@ register_gobang_ctest(test_room unit)
 
 ---
 
-## 七、验证方法
+## 七、验证方法 ✅
 
 ```bash
 cd source/build
