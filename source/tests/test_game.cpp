@@ -194,9 +194,9 @@ TEST_F(GameControllerTest, HandleReconnectNotInRoom) {
     server_.game_ctrl().handle_reconnect(9999);
 }
 
+} // namespace
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
-} // namespace
