@@ -28,6 +28,7 @@ public:
           timeout_seconds_(60) {}
 
     ~GameController() {
+        std::cerr << "[DEBUG] ~GameController: start" << std::endl;
         // 停止所有定时器
         std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
         {
@@ -42,13 +43,17 @@ public:
         }
         for (auto& pair : timers_copy) {
             if (pair.second->thread.joinable()) {
+                std::cerr << "[DEBUG] ~GameController: joining thread for room " << pair.first << std::endl;
                 pair.second->thread.join();
+                std::cerr << "[DEBUG] ~GameController: thread joined" << std::endl;
             }
         }
+        std::cerr << "[DEBUG] ~GameController: done" << std::endl;
     }
 
     void init(RoomManager* room_mgr, OnlineManager* online_mgr,
               ConnectionManager* conn_mgr, UserTable* user_table) {
+        std::cerr << "[DEBUG] init: start" << std::endl;
         // 停止之前的定时器
         std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
         {
@@ -63,7 +68,9 @@ public:
         }
         for (auto& pair : timers_copy) {
             if (pair.second->thread.joinable()) {
+                std::cerr << "[DEBUG] init: joining thread for room " << pair.first << std::endl;
                 pair.second->thread.join();
+                std::cerr << "[DEBUG] init: thread joined" << std::endl;
             }
         }
 
@@ -71,6 +78,7 @@ public:
         online_mgr_ = online_mgr;
         conn_mgr_ = conn_mgr;
         user_table_ = user_table;
+        std::cerr << "[DEBUG] init: done" << std::endl;
     }
 
     void set_timeout_seconds(int seconds) {
@@ -79,11 +87,13 @@ public:
 
     // 停止所有定时器
     void stop_all_timers() {
+        std::cerr << "[DEBUG] stop_all_timers: start" << std::endl;
         std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
         {
             std::lock_guard<std::mutex> lock(timers_mtx_);
             timers_copy.swap(timers_);
         }
+        std::cerr << "[DEBUG] stop_all_timers: timers_copy size=" << timers_copy.size() << std::endl;
         for (auto& pair : timers_copy) {
             auto& info = pair.second;
             std::lock_guard<std::mutex> ilock(info->mtx);
@@ -92,9 +102,12 @@ public:
         }
         for (auto& pair : timers_copy) {
             if (pair.second->thread.joinable()) {
+                std::cerr << "[DEBUG] stop_all_timers: joining thread for room " << pair.first << std::endl;
                 pair.second->thread.join();
+                std::cerr << "[DEBUG] stop_all_timers: thread joined" << std::endl;
             }
         }
+        std::cerr << "[DEBUG] stop_all_timers: done" << std::endl;
     }
 
     // 处理游戏开始（匹配成功后调用）
@@ -142,9 +155,12 @@ public:
 
     // 处理落子事件
     void handle_move(int64_t user_id, int row, int col) {
+        std::cerr << "[DEBUG] handle_move: user_id=" << user_id << std::endl;
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
+            std::cerr << "[DEBUG] handle_move: not in room, sending error" << std::endl;
             send_error(user_id, 4001, "not in room");
+            std::cerr << "[DEBUG] handle_move: error sent, returning" << std::endl;
             return;
         }
 
@@ -398,11 +414,14 @@ private:
 
     // 发送错误消息
     void send_error(int64_t user_id, int code, const std::string& message) {
+        std::cerr << "[DEBUG] send_error: user_id=" << user_id << ", code=" << code << std::endl;
         Json::Value msg;
         msg["event"] = "error";
         msg["data"]["code"] = code;
         msg["data"]["message"] = message;
+        std::cerr << "[DEBUG] send_error: calling conn_mgr_->send" << std::endl;
         conn_mgr_->send(user_id, msg.toStyledString());
+        std::cerr << "[DEBUG] send_error: done" << std::endl;
     }
 
     RoomManager*       room_mgr_;
