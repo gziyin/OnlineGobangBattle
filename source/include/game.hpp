@@ -77,6 +77,26 @@ public:
         timeout_seconds_ = seconds;
     }
 
+    // 停止所有定时器
+    void stop_all_timers() {
+        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
+        {
+            std::lock_guard<std::mutex> lock(timers_mtx_);
+            timers_copy.swap(timers_);
+        }
+        for (auto& pair : timers_copy) {
+            auto& info = pair.second;
+            std::lock_guard<std::mutex> ilock(info->mtx);
+            info->cancelled = true;
+            info->cv.notify_all();
+        }
+        for (auto& pair : timers_copy) {
+            if (pair.second->thread.joinable()) {
+                pair.second->thread.join();
+            }
+        }
+    }
+
     // 处理游戏开始（匹配成功后调用）
     void handle_game_start(int64_t player1_id, int64_t player2_id) {
         // 创建房间

@@ -152,6 +152,7 @@ protected:
     }
 
     void TearDown() override {
+        server_.game_ctrl().stop_all_timers();
         server_.stop();
     }
 
