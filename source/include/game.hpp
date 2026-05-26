@@ -29,19 +29,22 @@ public:
 
     ~GameController() {
         // 停止所有定时器
-        std::lock_guard<std::mutex> lock(timers_mtx_);
-        for (auto& pair : timers_) {
+        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
+        {
+            std::lock_guard<std::mutex> lock(timers_mtx_);
+            timers_copy.swap(timers_);
+        }
+        for (auto& pair : timers_copy) {
             auto& info = pair.second;
             std::lock_guard<std::mutex> ilock(info->mtx);
             info->cancelled = true;
             info->cv.notify_all();
         }
-        for (auto& pair : timers_) {
+        for (auto& pair : timers_copy) {
             if (pair.second->thread.joinable()) {
                 pair.second->thread.join();
             }
         }
-        timers_.clear();
     }
 
     void init(RoomManager* room_mgr, OnlineManager* online_mgr,
