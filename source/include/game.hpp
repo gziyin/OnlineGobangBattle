@@ -49,6 +49,24 @@ public:
 
     void init(RoomManager* room_mgr, OnlineManager* online_mgr,
               ConnectionManager* conn_mgr, UserTable* user_table) {
+        // 停止之前的定时器
+        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
+        {
+            std::lock_guard<std::mutex> lock(timers_mtx_);
+            timers_copy.swap(timers_);
+        }
+        for (auto& pair : timers_copy) {
+            auto& info = pair.second;
+            std::lock_guard<std::mutex> ilock(info->mtx);
+            info->cancelled = true;
+            info->cv.notify_all();
+        }
+        for (auto& pair : timers_copy) {
+            if (pair.second->thread.joinable()) {
+                pair.second->thread.join();
+            }
+        }
+
         room_mgr_ = room_mgr;
         online_mgr_ = online_mgr;
         conn_mgr_ = conn_mgr;
