@@ -231,16 +231,20 @@ private:
                 result_str = "draw";
                 reason = "board_full";
                 break;
-            case GameResult::TIMEOUT:
+            case GameResult::TIMEOUT: {
+                PieceColor winner_color;
                 result_str = (winner_id == room->get_opponent_id(loser_id)) ?
-                    (room->get_player_color(winner_id, PieceColor::BLACK) ? "black_win" : "white_win") : "timeout";
+                    (room->get_player_color(winner_id, winner_color) && winner_color == PieceColor::BLACK ? "black_win" : "white_win") : "timeout";
                 reason = "timeout";
                 break;
-            case GameResult::GIVEUP:
+            }
+            case GameResult::GIVEUP: {
+                PieceColor winner_color;
                 result_str = (winner_id == room->get_opponent_id(loser_id)) ?
-                    (room->get_player_color(winner_id, PieceColor::BLACK) ? "black_win" : "white_win") : "giveup";
+                    (room->get_player_color(winner_id, winner_color) && winner_color == PieceColor::BLACK ? "black_win" : "white_win") : "giveup";
                 reason = "giveup";
                 break;
+            }
             default:
                 result_str = "unknown";
                 reason = "unknown";
