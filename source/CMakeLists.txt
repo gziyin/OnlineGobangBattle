@@ -216,6 +216,15 @@ add_gobang_test(test_room tests/test_room.cpp
 )
 register_gobang_ctest(test_room unit)
 
+add_gobang_test(test_game tests/test_game.cpp
+    ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${GTEST_LIBRARIES}
+    Threads::Threads
+)
+register_gobang_ctest(test_game integration)
+
 message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

@@ -134,6 +134,13 @@ public:
         return players_[1 - idx].user_id;
     }
 
+    // 获取两个玩家的 ID
+    void get_player_ids(int64_t& player1_id, int64_t& player2_id) const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        player1_id = players_[0].user_id;
+        player2_id = players_[1].user_id;
+    }
+
     // ===== 游戏操作 =====
 
     GameResult place_piece(int64_t user_id, int row, int col) {
