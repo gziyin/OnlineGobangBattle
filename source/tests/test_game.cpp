@@ -72,15 +72,22 @@ class TestGameServer {
 public:
     static const uint16_t kPort = 18081;
 
+    ~TestGameServer() {
+        stop();  // 确保线程被 join
+    }
+
     void start() {
-        gobang::Logger::instance().init("test_game.log");
+        // 创建 logs 目录（如果不存在）
+        system("mkdir -p ../logs");
+        gobang::Logger::instance().init("../logs/test.log");
 
         conn_mgr_.init(&server_);
         online_mgr_.user_online(1001);
         online_mgr_.user_online(1002);
 
-        game_ctrl_.init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr);
-        game_ctrl_.set_timeout_seconds(2);  // 短超时用于测试
+        game_ctrl_ = gobang::GameController::create();
+        game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr);
+        game_ctrl_->set_timeout_seconds(2);  // 短超时用于测试
 
         server_.clear_access_channels(websocketpp::log::alevel::all);
         server_.clear_error_channels(websocketpp::log::elevel::all);
@@ -128,20 +135,22 @@ public:
         }
     }
 
-    gobang::GameController& game_ctrl() { return game_ctrl_; }
+    gobang::GameController& game_ctrl() { return *game_ctrl_; }
     gobang::RoomManager& room_mgr() { return room_mgr_; }
     gobang::OnlineManager& online_mgr() { return online_mgr_; }
     MessageCollector& collector() { return collector_; }
 
 private:
-    gobang::WebsocketServer server_;
-    gobang::ConnectionManager conn_mgr_;
-    gobang::OnlineManager online_mgr_;
-    gobang::RoomManager room_mgr_;
-    gobang::GameController game_ctrl_;
-    MessageCollector collector_;
-    std::thread thread_;
+    // 声明顺序决定析构顺序（逆序析构）
+    // 先声明的后析构，后声明的先析构
+    std::thread thread_;  // 最后析构，确保在 game_ctrl_ 之后
     std::unordered_map<int64_t, connection_hdl> user_connections_;
+    MessageCollector collector_;
+    std::shared_ptr<gobang::GameController> game_ctrl_;  // 在 server_ 之前析构
+    gobang::RoomManager room_mgr_;
+    gobang::OnlineManager online_mgr_;
+    gobang::ConnectionManager conn_mgr_;
+    gobang::WebsocketServer server_;
 };
 
 class GameControllerTest : public ::testing::Test {
@@ -195,10 +204,10 @@ TEST_F(GameControllerTest, HandleReconnectNotInRoom) {
 TEST_F(GameControllerTest, TimerCleanupOnDestroy) {
     // 测试析构时定时器清理是否安全
     {
-        gobang::GameController ctrl;
-        ctrl.init(&server_.room_mgr(), &server_.online_mgr(), nullptr, nullptr);
-        ctrl.set_timeout_seconds(1);
-        ctrl.handle_game_start(2001, 2002);
+        auto ctrl = gobang::GameController::create();
+        ctrl->init(&server_.room_mgr(), &server_.online_mgr(), nullptr, nullptr);
+        ctrl->set_timeout_seconds(1);
+        ctrl->handle_game_start(2001, 2002);
         // ctrl 在这里析构，应该不会崩溃
     }
     SUCCEED();

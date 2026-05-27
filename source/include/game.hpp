@@ -21,16 +21,25 @@
 
 namespace gobang {
 
-class GameController {
+class GameController : public std::enable_shared_from_this<GameController> {
 public:
+    // 工厂方法，创建 GameController 实例
+    static std::shared_ptr<GameController> create() {
+        return std::shared_ptr<GameController>(new GameController());
+    }
+
+    ~GameController() {
+        cleanup_all_timers();
+    }
+
+private:
+    // 私有构造函数，强制使用 create() 方法
     GameController()
         : room_mgr_(nullptr), online_mgr_(nullptr),
           conn_mgr_(nullptr), user_table_(nullptr),
           timeout_seconds_(60) {}
 
-    ~GameController() {
-        cleanup_all_timers();
-    }
+public:
 
     void init(RoomManager* room_mgr, OnlineManager* online_mgr,
               ConnectionManager* conn_mgr, UserTable* user_table) {
@@ -313,15 +322,20 @@ private:
             timers_[room_id] = info;
         }
 
-        // 定时器线程只负责计时，超时后设置标志，不直接调用游戏逻辑
-        info->thread = std::thread([this, room_id, info]() {
-            std::unique_lock<std::mutex> lock(info->mtx);
-            info->cv.wait_for(lock, std::chrono::seconds(timeout_seconds_),
-                              [&info]() { return info->cancelled; });
-            // 只通知，不直接处理游戏逻辑
-            if (!info->cancelled) {
-                handle_timeout_async(room_id);
+        // 使用 weak_ptr 检查 GameController 是否仍然有效
+        std::weak_ptr<GameController> weak_self = shared_from_this();
+        info->thread = std::thread([weak_self, room_id, info]() {
+            // 检查对象是否仍然有效
+            if (auto self = weak_self.lock()) {
+                std::unique_lock<std::mutex> lock(info->mtx);
+                info->cv.wait_for(lock, std::chrono::seconds(self->timeout_seconds_),
+                                  [&info]() { return info->cancelled; });
+                // 只通知，不直接处理游戏逻辑
+                if (!info->cancelled) {
+                    self->handle_timeout_async(room_id);
+                }
             }
+            // 如果对象已销毁，直接退出
         });
     }
 
