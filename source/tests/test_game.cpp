@@ -161,9 +161,6 @@ protected:
 
 // 测试用例
 TEST_F(GameControllerTest, HandleGameStart) {
-    // 注意：这个测试需要实际的 WebSocket 连接才能验证消息
-    // 由于测试环境限制，我们只验证房间创建和状态变化
-
     server_.game_ctrl().handle_game_start(1001, 1002);
 
     // 验证房间已创建
@@ -193,6 +190,40 @@ TEST_F(GameControllerTest, HandleDisconnectNotInRoom) {
 
 TEST_F(GameControllerTest, HandleReconnectNotInRoom) {
     server_.game_ctrl().handle_reconnect(9999);
+}
+
+TEST_F(GameControllerTest, TimerCleanupOnDestroy) {
+    // 测试析构时定时器清理是否安全
+    {
+        gobang::GameController ctrl;
+        ctrl.init(&server_.room_mgr(), &server_.online_mgr(), nullptr, nullptr);
+        ctrl.set_timeout_seconds(1);
+        ctrl.handle_game_start(2001, 2002);
+        // ctrl 在这里析构，应该不会崩溃
+    }
+    SUCCEED();
+}
+
+TEST_F(GameControllerTest, MultipleGameStartStop) {
+    // 测试多次创建和销毁游戏
+    for (int i = 0; i < 3; ++i) {
+        int64_t p1 = 3001 + i * 2;
+        int64_t p2 = 3002 + i * 2;
+        server_.online_mgr().user_online(p1);
+        server_.online_mgr().user_online(p2);
+        server_.game_ctrl().handle_game_start(p1, p2);
+    }
+    // 停止所有定时器
+    server_.game_ctrl().stop_all_timers();
+    SUCCEED();
+}
+
+TEST_F(GameControllerTest, ProcessPendingTimeouts) {
+    // 测试超时队列处理
+    server_.game_ctrl().handle_game_start(4001, 4002);
+    // process_pending_timeouts 应该可以安全调用
+    server_.game_ctrl().process_pending_timeouts();
+    SUCCEED();
 }
 
 } // namespace

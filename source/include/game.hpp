@@ -9,6 +9,7 @@
 #include <functional>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 
 #include "room.hpp"
 #include "online.hpp"
@@ -28,57 +29,16 @@ public:
           timeout_seconds_(60) {}
 
     ~GameController() {
-        std::cerr << "[DEBUG] ~GameController: start" << std::endl;
-        // 停止所有定时器
-        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
-        {
-            std::lock_guard<std::mutex> lock(timers_mtx_);
-            timers_copy.swap(timers_);
-        }
-        for (auto& pair : timers_copy) {
-            auto& info = pair.second;
-            std::lock_guard<std::mutex> ilock(info->mtx);
-            info->cancelled = true;
-            info->cv.notify_all();
-        }
-        for (auto& pair : timers_copy) {
-            if (pair.second->thread.joinable()) {
-                std::cerr << "[DEBUG] ~GameController: joining thread for room " << pair.first << std::endl;
-                pair.second->thread.join();
-                std::cerr << "[DEBUG] ~GameController: thread joined" << std::endl;
-            }
-        }
-        std::cerr << "[DEBUG] ~GameController: done" << std::endl;
+        cleanup_all_timers();
     }
 
     void init(RoomManager* room_mgr, OnlineManager* online_mgr,
               ConnectionManager* conn_mgr, UserTable* user_table) {
-        std::cerr << "[DEBUG] init: start" << std::endl;
-        // 停止之前的定时器
-        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
-        {
-            std::lock_guard<std::mutex> lock(timers_mtx_);
-            timers_copy.swap(timers_);
-        }
-        for (auto& pair : timers_copy) {
-            auto& info = pair.second;
-            std::lock_guard<std::mutex> ilock(info->mtx);
-            info->cancelled = true;
-            info->cv.notify_all();
-        }
-        for (auto& pair : timers_copy) {
-            if (pair.second->thread.joinable()) {
-                std::cerr << "[DEBUG] init: joining thread for room " << pair.first << std::endl;
-                pair.second->thread.join();
-                std::cerr << "[DEBUG] init: thread joined" << std::endl;
-            }
-        }
-
+        cleanup_all_timers();
         room_mgr_ = room_mgr;
         online_mgr_ = online_mgr;
         conn_mgr_ = conn_mgr;
         user_table_ = user_table;
-        std::cerr << "[DEBUG] init: done" << std::endl;
     }
 
     void set_timeout_seconds(int seconds) {
@@ -87,27 +47,24 @@ public:
 
     // 停止所有定时器
     void stop_all_timers() {
-        std::cerr << "[DEBUG] stop_all_timers: start" << std::endl;
-        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
+        cleanup_all_timers();
+    }
+
+    // 处理待处理的超时（需要定期调用）
+    void process_pending_timeouts() {
+        std::vector<std::string> pending;
         {
-            std::lock_guard<std::mutex> lock(timers_mtx_);
-            timers_copy.swap(timers_);
+            std::lock_guard<std::mutex> lock(timeout_queue_mtx_);
+            pending.swap(timeout_queue_);
         }
-        std::cerr << "[DEBUG] stop_all_timers: timers_copy size=" << timers_copy.size() << std::endl;
-        for (auto& pair : timers_copy) {
-            auto& info = pair.second;
-            std::lock_guard<std::mutex> ilock(info->mtx);
-            info->cancelled = true;
-            info->cv.notify_all();
-        }
-        for (auto& pair : timers_copy) {
-            if (pair.second->thread.joinable()) {
-                std::cerr << "[DEBUG] stop_all_timers: joining thread for room " << pair.first << std::endl;
-                pair.second->thread.join();
-                std::cerr << "[DEBUG] stop_all_timers: thread joined" << std::endl;
+        for (const auto& room_id : pending) {
+            GameRoom* room = room_mgr_->get_room(room_id);
+            if (room && room->get_status() == RoomStatus::PLAYING) {
+                int64_t current = room->get_current_turn();
+                int64_t opponent = room->get_opponent_id(current);
+                on_game_over(room_id, GameResult::TIMEOUT, opponent, current);
             }
         }
-        std::cerr << "[DEBUG] stop_all_timers: done" << std::endl;
     }
 
     // 处理游戏开始（匹配成功后调用）
@@ -155,12 +112,9 @@ public:
 
     // 处理落子事件
     void handle_move(int64_t user_id, int row, int col) {
-        std::cerr << "[DEBUG] handle_move: user_id=" << user_id << std::endl;
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
-            std::cerr << "[DEBUG] handle_move: not in room, sending error" << std::endl;
             send_error(user_id, 4001, "not in room");
-            std::cerr << "[DEBUG] handle_move: error sent, returning" << std::endl;
             return;
         }
 
@@ -353,23 +307,22 @@ private:
         auto info = std::make_shared<TimeoutInfo>();
         info->cancelled = false;
 
+        // 先加入 map，再启动线程（修复时序问题）
+        {
+            std::lock_guard<std::mutex> lock(timers_mtx_);
+            timers_[room_id] = info;
+        }
+
+        // 定时器线程只负责计时，超时后设置标志，不直接调用游戏逻辑
         info->thread = std::thread([this, room_id, info]() {
             std::unique_lock<std::mutex> lock(info->mtx);
             info->cv.wait_for(lock, std::chrono::seconds(timeout_seconds_),
                               [&info]() { return info->cancelled; });
+            // 只通知，不直接处理游戏逻辑
             if (!info->cancelled) {
-                // 超时处理
-                GameRoom* room = room_mgr_->get_room(room_id);
-                if (room && room->get_status() == RoomStatus::PLAYING) {
-                    int64_t current = room->get_current_turn();
-                    int64_t opponent = room->get_opponent_id(current);
-                    on_game_over(room_id, GameResult::TIMEOUT, opponent, current);
-                }
+                handle_timeout_async(room_id);
             }
         });
-
-        std::lock_guard<std::mutex> lock(timers_mtx_);
-        timers_[room_id] = info;
     }
 
     // 停止超时定时器
@@ -393,6 +346,32 @@ private:
         }
     }
 
+    // 清理所有定时器
+    void cleanup_all_timers() {
+        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
+        {
+            std::lock_guard<std::mutex> lock(timers_mtx_);
+            timers_copy.swap(timers_);
+        }
+        for (auto& pair : timers_copy) {
+            auto& info = pair.second;
+            std::lock_guard<std::mutex> ilock(info->mtx);
+            info->cancelled = true;
+            info->cv.notify_all();
+        }
+        for (auto& pair : timers_copy) {
+            if (pair.second->thread.joinable()) {
+                pair.second->thread.join();
+            }
+        }
+    }
+
+    // 异步处理超时（定时器线程调用，只设置标志）
+    void handle_timeout_async(const std::string& room_id) {
+        std::lock_guard<std::mutex> lock(timeout_queue_mtx_);
+        timeout_queue_.push_back(room_id);
+    }
+
     // 获取 GameResult 对应的获胜者和失败者
     void get_winner_loser(GameRoom* room, GameResult result,
                           int64_t& winner_id, int64_t& loser_id) {
@@ -414,14 +393,11 @@ private:
 
     // 发送错误消息
     void send_error(int64_t user_id, int code, const std::string& message) {
-        std::cerr << "[DEBUG] send_error: user_id=" << user_id << ", code=" << code << std::endl;
         Json::Value msg;
         msg["event"] = "error";
         msg["data"]["code"] = code;
         msg["data"]["message"] = message;
-        std::cerr << "[DEBUG] send_error: calling conn_mgr_->send" << std::endl;
         conn_mgr_->send(user_id, msg.toStyledString());
-        std::cerr << "[DEBUG] send_error: done" << std::endl;
     }
 
     RoomManager*       room_mgr_;
@@ -439,6 +415,10 @@ private:
     };
     std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_;
     std::mutex timers_mtx_;
+
+    // 超时队列（异步通知机制）
+    std::vector<std::string> timeout_queue_;
+    std::mutex timeout_queue_mtx_;
 };
 
 } // namespace gobang
