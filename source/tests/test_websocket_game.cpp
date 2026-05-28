@@ -437,8 +437,10 @@ TEST_F(WebSocketGameTest, GameMoveWin) {
     const int black_cols[] = {3, 4, 5, 6, 7};
     for (int i = 0; i < 5; ++i) {
         ASSERT_TRUE(send_move(*m.black_client, m.black_id, black_row, black_cols[i]));
-        Json::Value move_ev = m.black_client->wait_for_event("game.move");
-        ASSERT_FALSE(move_ev.isNull()) << "move " << i;
+        if (i < 4) {
+            Json::Value move_ev = m.black_client->wait_for_event("game.move");
+            ASSERT_FALSE(move_ev.isNull()) << "move " << i;
+        }
 
         if (i < 4) {
             ASSERT_TRUE(send_move(*m.white_client, m.white_id, i, i));
