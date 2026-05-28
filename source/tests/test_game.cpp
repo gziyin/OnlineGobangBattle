@@ -3,8 +3,12 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <thread>
 
+#include <sys/stat.h>
+
+#include "config.h"
 #include "game.hpp"
 #include "room.hpp"
 #include "online.hpp"
@@ -13,13 +17,21 @@
 
 namespace {
 
+static void ensure_source_logs_dir() {
+    const std::string dir = std::string(GOBANG_SOURCE_DIR) + "/logs";
+    mkdir(dir.c_str(), 0755);
+}
+
 // 轻量夹具：不启动 WebSocket，专注 GameController / RoomManager 逻辑
 class GameControllerUnitTest : public ::testing::Test {
 protected:
     void SetUp() override {
         static bool logger_ready = false;
         if (!logger_ready) {
-            gobang::Logger::instance().init("logs/test_game.log", gobang::LogLevel::WARN);
+            ensure_source_logs_dir();
+            const std::string log_path =
+                std::string(GOBANG_SOURCE_DIR) + "/logs/test_game.log";
+            gobang::Logger::instance().init(log_path, gobang::LogLevel::WARN);
             logger_ready = true;
         }
 
