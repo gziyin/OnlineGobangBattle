@@ -9,6 +9,7 @@
  */
 
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <signal.h>
 
@@ -22,6 +23,8 @@
 #include "user_table.hpp"
 #include "security.hpp"
 #include "util.hpp"
+#include "game.hpp"
+#include "room.hpp"
 
 using websocketpp::connection_hdl;
 
@@ -115,6 +118,8 @@ gobang::Matcher g_matcher;
 gobang::WebSocketHandler g_ws_handler;
 gobang::DBPool g_db_pool;
 gobang::UserTable g_user_table;
+gobang::RoomManager g_room_mgr;
+std::shared_ptr<gobang::GameController> g_game_ctrl;
 
 // 信号处理
 void on_signal(int sig) {
@@ -148,8 +153,12 @@ int main() {
     g_matcher.init(&g_online_mgr);
     g_matcher.start();
 
-    // WebSocketHandler 初始化（注入 server）
-    g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server);
+    g_game_ctrl = gobang::GameController::create();
+    g_game_ctrl->init(&g_room_mgr, &g_online_mgr, &g_conn_mgr, &g_user_table);
+
+    // WebSocketHandler 初始化（注入 server 与 GameController）
+    g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server,
+                      g_game_ctrl.get());
 
     // 配置 server
     g_server.init_asio();

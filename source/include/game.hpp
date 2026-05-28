@@ -74,11 +74,11 @@ public:
         }
     }
 
-    void handle_game_start(int64_t player1_id, int64_t player2_id) {
+    std::string handle_game_start(int64_t player1_id, int64_t player2_id) {
         std::string room_id = room_mgr_->create_room(player1_id, player2_id);
         if (room_id.empty()) {
             LOG_WARN("handle_game_start: 创建房间失败");
-            return;
+            return "";
         }
 
         online_mgr_->set_status(player1_id, OnlineStatus::IN_ROOM);
@@ -111,6 +111,7 @@ public:
         start_timeout_timer(room_id);
 
         LOG_INFO("游戏开始: " << room_id << ", 玩家: " << player1_id << " vs " << player2_id);
+        return room_id;
     }
 
     void handle_move(int64_t user_id, int row, int col) {

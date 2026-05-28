@@ -8,11 +8,7 @@
 #include "security.hpp"
 #include "util.hpp"
 #include "logger.hpp"
-
-// 前向声明 GameController，避免循环依赖
-namespace gobang {
-class GameController;
-}
+#include "game.hpp"
 
 namespace gobang {
 
@@ -79,11 +75,19 @@ public:
      */
     int64_t get_user_id_from_hdl(WebsocketConnectionHdl hdl) const;
 
+    /**
+     * @brief 处理游戏超时队列（可在主循环中周期性调用）
+     */
+    void process_timers();
+
 private:
     // 事件处理函数
     std::string handle_match_start(int64_t user_id, const Json::Value& data);
     std::string handle_match_cancel(int64_t user_id, const Json::Value& data);
     std::string handle_ping(int64_t user_id, const Json::Value& data);
+    void handle_game_move(int64_t user_id, const Json::Value& data);
+    void handle_game_giveup(int64_t user_id);
+    void handle_game_reconnect(int64_t user_id, const Json::Value& data);
 
     // 工具函数
     std::string make_response(const std::string& event, const Json::Value& data);
@@ -93,10 +97,13 @@ private:
     // 匹配成功回调处理
     void on_match_success(const MatchResult& result);
 
+    void send_error_to_user(int64_t user_id, int code, const std::string& message);
+
     // 管理器引用
     ConnectionManager* _conn_mgr = nullptr;
     OnlineManager* _online_mgr = nullptr;
     MatcherInterface* _matcher = nullptr;
+    GameController* _game_ctrl = nullptr;
 
     // 连接到 user_id 的临时映射（认证前）
     mutable std::mutex _hdl_user_mtx;
@@ -111,11 +118,13 @@ private:
 inline void WebSocketHandler::init(ConnectionManager* conn_mgr,
                                     OnlineManager* online_mgr,
                                     MatcherInterface* matcher,
-                                    WebsocketServer* server) {
+                                    WebsocketServer* server,
+                                    GameController* game_ctrl) {
     _conn_mgr = conn_mgr;
     _online_mgr = online_mgr;
     _matcher = matcher;
     _server = server;
+    _game_ctrl = game_ctrl;
 
     // 设置匹配成功回调
     if (_matcher) {
@@ -138,6 +147,10 @@ inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
 
     if (user_id > 0) {
         LOG_INFO("WebSocketHandler: user disconnected - user_id=" << user_id);
+
+        if (_game_ctrl) {
+            _game_ctrl->handle_disconnect(user_id);
+        }
 
         // 执行统一断线流程
         _conn_mgr->remove(user_id);
@@ -208,6 +221,15 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
         response = handle_match_cancel(user_id, data);
     } else if (event == "ping") {
         response = handle_ping(user_id, data);
+    } else if (event == "game.move") {
+        handle_game_move(user_id, data);
+        return;
+    } else if (event == "game.giveup") {
+        handle_game_giveup(user_id);
+        return;
+    } else if (event == "game.reconnect") {
+        handle_game_reconnect(user_id, data);
+        return;
     } else {
         LOG_WARN("WebSocketHandler: unknown event: " << event);
         response = make_error(4002, "unknown event");
@@ -293,14 +315,71 @@ inline std::string WebSocketHandler::handle_ping(int64_t user_id, const Json::Va
     return make_response("pong", resp_data);
 }
 
+inline void WebSocketHandler::handle_game_move(int64_t user_id, const Json::Value& data) {
+    if (!_game_ctrl) {
+        send_error_to_user(user_id, 5000, "game not available");
+        return;
+    }
+    if (!data.isMember("row") || !data.isMember("col")) {
+        send_error_to_user(user_id, 4002, "missing row or col");
+        return;
+    }
+    _game_ctrl->handle_move(user_id, data["row"].asInt(), data["col"].asInt());
+}
+
+inline void WebSocketHandler::handle_game_giveup(int64_t user_id) {
+    if (!_game_ctrl) {
+        send_error_to_user(user_id, 5000, "game not available");
+        return;
+    }
+    _game_ctrl->handle_giveup(user_id);
+}
+
+inline void WebSocketHandler::handle_game_reconnect(int64_t user_id, const Json::Value& data) {
+    if (!_game_ctrl) {
+        send_error_to_user(user_id, 5000, "game not available");
+        return;
+    }
+    if (data.isMember("token")) {
+        int64_t verified_id = verify_token_from_data(data);
+        if (verified_id == 0 || verified_id != user_id) {
+            send_error_to_user(user_id, 4001, "invalid token");
+            return;
+        }
+    }
+    _game_ctrl->handle_reconnect(user_id);
+}
+
+inline void WebSocketHandler::process_timers() {
+    if (_game_ctrl) {
+        _game_ctrl->process_pending_timeouts();
+    }
+}
+
+inline void WebSocketHandler::send_error_to_user(int64_t user_id, int code,
+                                                  const std::string& message) {
+    if (_conn_mgr) {
+        _conn_mgr->send(user_id, make_error(code, message));
+    }
+}
+
 inline void WebSocketHandler::on_match_success(const MatchResult& result) {
     LOG_INFO("WebSocketHandler: match success - room_id=" << result.room_id
              << ", player1=" << result.player1_id
              << ", player2=" << result.player2_id);
 
-    // 向双方发送 match.success
+    std::string game_room_id;
+    if (_game_ctrl) {
+        game_room_id = _game_ctrl->handle_game_start(result.player1_id, result.player2_id);
+    }
+
+    // 向双方发送 match.success（房间号与 game.start 一致）
     Json::Value player1_data;
-    player1_data["room_id"] = (Json::Int64)result.room_id;
+    if (!game_room_id.empty()) {
+        player1_data["room_id"] = game_room_id;
+    } else {
+        player1_data["room_id"] = (Json::Int64)result.room_id;
+    }
     player1_data["color"] = (result.player1_color == 1) ? "black" : "white";
 
     Json::Value player1_opponent;
@@ -314,7 +393,11 @@ inline void WebSocketHandler::on_match_success(const MatchResult& result) {
 
     // 向 player2 发送
     Json::Value player2_data;
-    player2_data["room_id"] = (Json::Int64)result.room_id;
+    if (!game_room_id.empty()) {
+        player2_data["room_id"] = game_room_id;
+    } else {
+        player2_data["room_id"] = (Json::Int64)result.room_id;
+    }
     player2_data["color"] = (result.player2_color == 1) ? "black" : "white";
 
     Json::Value player2_opponent;

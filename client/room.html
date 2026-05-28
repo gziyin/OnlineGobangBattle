@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋对战</title>
+    <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="player-info opponent">
+            <div>
+                <div class="label">对手</div>
+                <span class="username">对手</span>
+            </div>
+            <span class="score">分数: --</span>
+        </div>
+
+        <div class="board-container">
+            <canvas id="board" width="600" height="600"></canvas>
+        </div>
+
+        <div class="player-info self">
+            <div>
+                <div class="label">我方</div>
+                <span class="username">我</span>
+            </div>
+            <span class="score">分数: --</span>
+        </div>
+
+        <div class="game-status">
+            <span class="turn-indicator">连接中...</span>
+            <span class="timer"></span>
+        </div>
+
+        <div class="game-actions">
+            <button id="btn-giveup" class="btn-danger" disabled>认输</button>
+        </div>
+
+        <div id="game-over-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 class="result-text">游戏结束</h2>
+                <p class="score-change"></p>
+                <button id="btn-back-hall">返回大厅</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+    <div class="connection-status connecting" id="connectionStatus">正在连接...</div>
+
+    <script src="js/websocket.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>

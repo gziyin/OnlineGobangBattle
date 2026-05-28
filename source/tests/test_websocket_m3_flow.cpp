@@ -60,7 +60,7 @@ public:
         g_conn_mgr.init(&g_server);
         g_matcher.init(&g_online_mgr);
         g_matcher.start();
-        g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server);
+        g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server, nullptr);
 
         g_server.clear_access_channels(websocketpp::log::alevel::all);
         g_server.clear_error_channels(websocketpp::log::elevel::all);
