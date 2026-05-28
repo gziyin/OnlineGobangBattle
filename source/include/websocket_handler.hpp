@@ -9,6 +9,11 @@
 #include "util.hpp"
 #include "logger.hpp"
 
+// 前向声明 GameController，避免循环依赖
+namespace gobang {
+class GameController;
+}
+
 namespace gobang {
 
 /**
@@ -16,20 +21,22 @@ namespace gobang {
  *
  * 负责：
  * - token 校验
- * - 消息分发（match.start / match.cancel / ping）
+ * - 消息分发（match.start / match.cancel / game.* / ping）
  * - 调用 matcher.enqueue/cancel
- * - 接收 MatchCallback 后向双方发送 match.success
- * - 断线处理：conn_mgr.remove -> online_mgr.user_offline -> matcher.on_disconnect
+ * - 调用 GameController 处理游戏事件
+ * - 接收 MatchCallback 后向双方发送 match.success 并启动游戏
+ * - 断线处理：game_ctrl.handle_disconnect -> conn_mgr.remove -> online_mgr.user_offline -> matcher.on_disconnect
  */
 class WebSocketHandler {
 public:
     /**
-     * @brief 初始化，注入各管理器和 WebSocket 服务器
+     * @brief 初始化，注入各管理器、游戏控制器和 WebSocket 服务器
      */
     void init(ConnectionManager* conn_mgr,
               OnlineManager* online_mgr,
               MatcherInterface* matcher,
-              WebsocketServer* server);
+              WebsocketServer* server,
+              GameController* game_ctrl);
 
     /**
      * @brief 处理 WebSocket 连接建立

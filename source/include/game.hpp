@@ -6,6 +6,7 @@
 #include <thread>
 #include <condition_variable>
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <unordered_map>
 #include <memory>
@@ -23,7 +24,6 @@ namespace gobang {
 
 class GameController : public std::enable_shared_from_this<GameController> {
 public:
-    // 工厂方法，创建 GameController 实例
     static std::shared_ptr<GameController> create() {
         return std::shared_ptr<GameController>(new GameController());
     }
@@ -33,11 +33,11 @@ public:
     }
 
 private:
-    // 私有构造函数，强制使用 create() 方法
     GameController()
         : room_mgr_(nullptr), online_mgr_(nullptr),
           conn_mgr_(nullptr), user_table_(nullptr),
-          timeout_seconds_(60) {}
+          timeout_seconds_(60), timer_shutdown_(false),
+          timer_worker_running_(false) {}
 
 public:
 
@@ -51,15 +51,13 @@ public:
     }
 
     void set_timeout_seconds(int seconds) {
-        timeout_seconds_ = seconds;
+        timeout_seconds_ = seconds > 0 ? seconds : 1;
     }
 
-    // 停止所有定时器
     void stop_all_timers() {
         cleanup_all_timers();
     }
 
-    // 处理待处理的超时（需要定期调用）
     void process_pending_timeouts() {
         std::vector<std::string> pending;
         {
@@ -76,50 +74,45 @@ public:
         }
     }
 
-    // 处理游戏开始（匹配成功后调用）
     void handle_game_start(int64_t player1_id, int64_t player2_id) {
-        // 创建房间
         std::string room_id = room_mgr_->create_room(player1_id, player2_id);
         if (room_id.empty()) {
             LOG_WARN("handle_game_start: 创建房间失败");
             return;
         }
 
-        // 设置双方状态为 IN_ROOM
         online_mgr_->set_status(player1_id, OnlineStatus::IN_ROOM);
         online_mgr_->set_status(player2_id, OnlineStatus::IN_ROOM);
 
-        // 获取对手信息
         Json::Value opponent1;
         opponent1["user_id"] = player2_id;
         Json::Value opponent2;
         opponent2["user_id"] = player1_id;
 
-        // 发送给 player1（黑棋先手）
         Json::Value msg1;
         msg1["event"] = "game.start";
         msg1["data"]["room_id"] = room_id;
         msg1["data"]["opponent"] = opponent2;
         msg1["data"]["color"] = "black";
         msg1["data"]["your_turn"] = true;
-        conn_mgr_->send(player1_id, msg1.toStyledString());
 
-        // 发送给 player2（白棋后手）
         Json::Value msg2;
         msg2["event"] = "game.start";
         msg2["data"]["room_id"] = room_id;
         msg2["data"]["opponent"] = opponent1;
         msg2["data"]["color"] = "white";
         msg2["data"]["your_turn"] = false;
-        conn_mgr_->send(player2_id, msg2.toStyledString());
 
-        // 启动超时定时器
+        if (conn_mgr_) {
+            conn_mgr_->send(player1_id, msg1.toStyledString());
+            conn_mgr_->send(player2_id, msg2.toStyledString());
+        }
+
         start_timeout_timer(room_id);
 
         LOG_INFO("游戏开始: " << room_id << ", 玩家: " << player1_id << " vs " << player2_id);
     }
 
-    // 处理落子事件
     void handle_move(int64_t user_id, int row, int col) {
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
@@ -129,13 +122,11 @@ public:
 
         GameResult result = room->place_piece(user_id, row, col);
         if (result == GameResult::NONE) {
-            // 检查是否真的落子成功（通过检查棋盘状态）
             if (room->get_board(row, col) == 0) {
                 send_error(user_id, 4002, "invalid move");
                 return;
             }
 
-            // 落子成功，广播给双方
             PieceColor color;
             room->get_player_color(user_id, color);
 
@@ -150,21 +141,16 @@ public:
             msg["data"]["next_turn"] = (next_color == PieceColor::BLACK) ? "black" : "white";
             broadcast_to_room(room->get_room_id(), msg.toStyledString());
 
-            // 重启超时定时器
             start_timeout_timer(room->get_room_id());
         } else if (result == GameResult::BLACK_WIN || result == GameResult::WHITE_WIN) {
-            // 游戏结束
             int64_t winner_id, loser_id;
             get_winner_loser(room, result, winner_id, loser_id);
             on_game_over(room->get_room_id(), result, winner_id, loser_id);
         } else if (result == GameResult::DRAW) {
-            // 平局（M4 暂不处理积分）
-            int64_t winner_id = 0, loser_id = 0;
-            on_game_over(room->get_room_id(), result, winner_id, loser_id);
+            on_game_over(room->get_room_id(), result, 0, 0);
         }
     }
 
-    // 处理认输事件
     void handle_giveup(int64_t user_id) {
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
@@ -179,20 +165,15 @@ public:
         }
 
         int64_t winner_id = room->get_opponent_id(user_id);
-        int64_t loser_id = user_id;
-        on_game_over(room->get_room_id(), GameResult::GIVEUP, winner_id, loser_id);
+        on_game_over(room->get_room_id(), GameResult::GIVEUP, winner_id, user_id);
     }
 
-    // 处理断线
     void handle_disconnect(int64_t user_id) {
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) return;
-
-        // 断线不立即判负，等待重连
         LOG_INFO("玩家 " << user_id << " 断线，等待重连");
     }
 
-    // 处理重连
     void handle_reconnect(int64_t user_id) {
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
@@ -200,7 +181,6 @@ public:
             return;
         }
 
-        // 发送完整棋盘状态
         Json::Value msg;
         msg["event"] = "game.reconnect";
         msg["data"]["room_id"] = room->get_room_id();
@@ -216,26 +196,24 @@ public:
         opponent["user_id"] = opponent_id;
         msg["data"]["opponent"] = opponent;
 
-        conn_mgr_->send(user_id, msg.toStyledString());
+        if (conn_mgr_) {
+            conn_mgr_->send(user_id, msg.toStyledString());
+        }
         LOG_INFO("玩家 " << user_id << " 重连成功");
     }
 
 private:
-    // 游戏结束处理
     void on_game_over(const std::string& room_id, GameResult result,
                       int64_t winner_id, int64_t loser_id) {
-        // 停止超时定时器
         stop_timeout_timer(room_id);
 
         GameRoom* room = room_mgr_->get_room(room_id);
         if (!room) return;
 
-        // 更新积分
         if (winner_id != 0 && loser_id != 0 && user_table_) {
             user_table_->update_score_match(winner_id, loser_id);
         }
 
-        // 确定结果字符串
         std::string result_str;
         std::string reason;
         switch (result) {
@@ -271,7 +249,6 @@ private:
                 break;
         }
 
-        // 构造结束消息
         Json::Value msg;
         msg["event"] = "game.over";
         msg["data"]["result"] = result_str;
@@ -283,23 +260,20 @@ private:
         }
         msg["data"]["score_change"] = 25;
 
-        // 广播给双方
         broadcast_to_room(room_id, msg.toStyledString());
 
-        // 设置双方状态为 HALL_IDLE
         int64_t p1, p2;
         room->get_player_ids(p1, p2);
         online_mgr_->set_status(p1, OnlineStatus::HALL_IDLE);
         online_mgr_->set_status(p2, OnlineStatus::HALL_IDLE);
 
-        // 销毁房间
         room_mgr_->destroy_room(room_id);
 
         LOG_INFO("游戏结束: " << room_id << ", 结果: " << result_str);
     }
 
-    // 发送消息给房间内所有玩家
     void broadcast_to_room(const std::string& room_id, const std::string& msg) {
+        if (!conn_mgr_) return;
         GameRoom* room = room_mgr_->get_room(room_id);
         if (!room) return;
 
@@ -309,90 +283,122 @@ private:
         conn_mgr_->send(p2, msg);
     }
 
-    // 启动超时检测定时器
     void start_timeout_timer(const std::string& room_id) {
-        stop_timeout_timer(room_id);
-
-        auto info = std::make_shared<TimeoutInfo>();
-        info->cancelled = false;
-
-        // 先加入 map，再启动线程（修复时序问题）
         {
             std::lock_guard<std::mutex> lock(timers_mtx_);
-            timers_[room_id] = info;
+            RoomTimerEntry& entry = room_timers_[room_id];
+            entry.deadline = std::chrono::steady_clock::now() +
+                             std::chrono::seconds(timeout_seconds_);
+            entry.active = true;
         }
-
-        // 使用 weak_ptr 检查 GameController 是否仍然有效
-        std::weak_ptr<GameController> weak_self = shared_from_this();
-        info->thread = std::thread([weak_self, room_id, info]() {
-            // 检查对象是否仍然有效
-            if (auto self = weak_self.lock()) {
-                std::unique_lock<std::mutex> lock(info->mtx);
-                info->cv.wait_for(lock, std::chrono::seconds(self->timeout_seconds_),
-                                  [&info]() { return info->cancelled; });
-                // 只通知，不直接处理游戏逻辑
-                if (!info->cancelled) {
-                    self->handle_timeout_async(room_id);
-                }
-            }
-            // 如果对象已销毁，直接退出
-        });
+        ensure_timer_worker();
+        timer_cv_.notify_one();
     }
 
-    // 停止超时定时器
     void stop_timeout_timer(const std::string& room_id) {
-        std::shared_ptr<TimeoutInfo> info;
         {
             std::lock_guard<std::mutex> lock(timers_mtx_);
-            auto it = timers_.find(room_id);
-            if (it == timers_.end()) return;
-            info = it->second;
-            timers_.erase(it);
+            room_timers_.erase(room_id);
         }
-
-        {
-            std::lock_guard<std::mutex> lock(info->mtx);
-            info->cancelled = true;
-            info->cv.notify_all();
-        }
-        if (info->thread.joinable()) {
-            info->thread.join();
-        }
+        timer_cv_.notify_one();
     }
 
-    // 清理所有定时器
     void cleanup_all_timers() {
-        std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_copy;
         {
             std::lock_guard<std::mutex> lock(timers_mtx_);
-            timers_copy.swap(timers_);
+            room_timers_.clear();
         }
-        for (auto& pair : timers_copy) {
-            auto& info = pair.second;
-            std::lock_guard<std::mutex> ilock(info->mtx);
-            info->cancelled = true;
-            info->cv.notify_all();
+        timer_shutdown_ = true;
+        timer_cv_.notify_one();
+        if (timer_worker_.joinable()) {
+            timer_worker_.join();
         }
-        for (auto& pair : timers_copy) {
-            if (pair.second->thread.joinable()) {
-                pair.second->thread.join();
+        timer_shutdown_ = false;
+        timer_worker_running_ = false;
+    }
+
+    void ensure_timer_worker() {
+        if (timer_worker_running_) {
+            return;
+        }
+        timer_worker_running_ = true;
+        timer_shutdown_ = false;
+        timer_worker_ = std::thread(&GameController::timer_worker_loop, this);
+    }
+
+    void timer_worker_loop() {
+        while (!timer_shutdown_) {
+            std::vector<std::string> expired;
+
+            {
+                std::unique_lock<std::mutex> lock(timers_mtx_);
+                const auto now = std::chrono::steady_clock::now();
+
+                for (auto it = room_timers_.begin(); it != room_timers_.end(); ) {
+                    if (!it->second.active) {
+                        it = room_timers_.erase(it);
+                        continue;
+                    }
+                    if (it->second.deadline <= now) {
+                        expired.push_back(it->first);
+                        it = room_timers_.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+
+                if (!expired.empty()) {
+                    lock.unlock();
+                    for (const auto& room_id : expired) {
+                        handle_timeout_async(room_id);
+                    }
+                    continue;
+                }
+
+                if (timer_shutdown_) {
+                    break;
+                }
+
+                if (room_timers_.empty()) {
+                    timer_cv_.wait(lock, [this]() {
+                        return timer_shutdown_ || !room_timers_.empty();
+                    });
+                    continue;
+                }
+
+                auto wake_at = room_timers_.begin()->second.deadline;
+                for (const auto& pair : room_timers_) {
+                    if (pair.second.active && pair.second.deadline < wake_at) {
+                        wake_at = pair.second.deadline;
+                    }
+                }
+
+                timer_cv_.wait_until(lock, wake_at, [this]() {
+                    if (timer_shutdown_) {
+                        return true;
+                    }
+                    const auto now = std::chrono::steady_clock::now();
+                    for (const auto& pair : room_timers_) {
+                        if (pair.second.active && pair.second.deadline <= now) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
             }
         }
     }
 
-    // 异步处理超时（定时器线程调用，只设置标志）
     void handle_timeout_async(const std::string& room_id) {
         std::lock_guard<std::mutex> lock(timeout_queue_mtx_);
         timeout_queue_.push_back(room_id);
     }
 
-    // 获取 GameResult 对应的获胜者和失败者
     void get_winner_loser(GameRoom* room, GameResult result,
                           int64_t& winner_id, int64_t& loser_id) {
         int64_t p1, p2;
         room->get_player_ids(p1, p2);
 
-        // p1 是黑棋，p2 是白棋
         if (result == GameResult::BLACK_WIN) {
             winner_id = p1;
             loser_id = p2;
@@ -405,8 +411,8 @@ private:
         }
     }
 
-    // 发送错误消息
     void send_error(int64_t user_id, int code, const std::string& message) {
+        if (!conn_mgr_) return;
         Json::Value msg;
         msg["event"] = "error";
         msg["data"]["code"] = code;
@@ -414,23 +420,26 @@ private:
         conn_mgr_->send(user_id, msg.toStyledString());
     }
 
+    struct RoomTimerEntry {
+        std::chrono::steady_clock::time_point deadline;
+        bool active;
+        RoomTimerEntry()
+            : deadline(std::chrono::steady_clock::now()), active(false) {}
+    };
+
     RoomManager*       room_mgr_;
     OnlineManager*     online_mgr_;
     ConnectionManager* conn_mgr_;
     UserTable*         user_table_;
     int                timeout_seconds_;
 
-    // 超时定时器
-    struct TimeoutInfo {
-        std::thread              thread;
-        std::condition_variable  cv;
-        std::mutex               mtx;
-        bool                     cancelled;
-    };
-    std::unordered_map<std::string, std::shared_ptr<TimeoutInfo>> timers_;
+    std::unordered_map<std::string, RoomTimerEntry> room_timers_;
     std::mutex timers_mtx_;
+    std::thread timer_worker_;
+    std::condition_variable timer_cv_;
+    std::atomic<bool> timer_shutdown_;
+    std::atomic<bool> timer_worker_running_;
 
-    // 超时队列（异步通知机制）
     std::vector<std::string> timeout_queue_;
     std::mutex timeout_queue_mtx_;
 };
