@@ -193,7 +193,11 @@ public:
     static const uint16_t kPort = 18081;
 
     void start() {
-        gobang::Logger::instance().init("test_websocket_game.log");
+        // Logger::init 内部使用线程，重复 init 会触发 std::terminate（thread::operator=）
+        static std::once_flag logger_once;
+        std::call_once(logger_once, []() {
+            gobang::Logger::instance().init("test_websocket_game.log");
+        });
 
         // 每次 start 都创建全新 server，避免 websocketpp server 复用导致 terminate
         server_.reset(new gobang::WebsocketServer());
