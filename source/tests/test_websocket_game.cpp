@@ -296,8 +296,10 @@ struct MatchedClients {
     int64_t white_id;
 };
 
-MatchedClients match_two_players(TestWebSocketClient& c1, TestWebSocketClient& c2,
-                                 int64_t id1, int64_t id2) {
+void match_two_players(TestWebSocketClient& c1, TestWebSocketClient& c2,
+                       int64_t id1, int64_t id2,
+                       MatchedClients* out) {
+    ASSERT_NE(out, nullptr);
     auth_client(c1, id1);
     auth_client(c2, id2);
 
@@ -308,8 +310,8 @@ MatchedClients match_two_players(TestWebSocketClient& c1, TestWebSocketClient& c
     start2["token"] = make_token(id2);
     start2["score"] = 1250;
 
-    ASSERT_TRUE(c1.send_event("match.start", start1));
-    ASSERT_TRUE(c2.send_event("match.start", start2));
+    ASSERT_TRUE(c1.send_event("match.start", start1)) << c1.last_error();
+    ASSERT_TRUE(c2.send_event("match.start", start2)) << c2.last_error();
 
     Json::Value m1 = c1.wait_for_event("match.success", 5000);
     Json::Value m2 = c2.wait_for_event("match.success", 5000);
@@ -321,19 +323,17 @@ MatchedClients match_two_players(TestWebSocketClient& c1, TestWebSocketClient& c
     ASSERT_FALSE(g1.isNull()) << c1.last_error();
     ASSERT_FALSE(g2.isNull()) << c2.last_error();
 
-    MatchedClients out;
     if (g1["data"]["color"].asString() == "black") {
-        out.black_client = &c1;
-        out.white_client = &c2;
-        out.black_id = id1;
-        out.white_id = id2;
+        out->black_client = &c1;
+        out->white_client = &c2;
+        out->black_id = id1;
+        out->white_id = id2;
     } else {
-        out.black_client = &c2;
-        out.white_client = &c1;
-        out.black_id = id2;
-        out.white_id = id1;
+        out->black_client = &c2;
+        out->white_client = &c1;
+        out->black_id = id2;
+        out->white_id = id1;
     }
-    return out;
 }
 
 bool send_move(TestWebSocketClient& client, int64_t user_id, int row, int col) {
@@ -368,7 +368,8 @@ protected:
 
 TEST_F(WebSocketGameTest, MatchSuccessCreatesRoom) {
     connect_clients();
-    MatchedClients matched = match_two_players(_client1, _client2, 5001, 5002);
+    MatchedClients matched{};
+    match_two_players(_client1, _client2, 5001, 5002, &matched);
 
     EXPECT_GT(g_room_mgr.room_count(), 0u);
 
@@ -380,7 +381,8 @@ TEST_F(WebSocketGameTest, MatchSuccessCreatesRoom) {
 
 TEST_F(WebSocketGameTest, GameMoveValid) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5101, 5102);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5101, 5102, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
@@ -397,7 +399,8 @@ TEST_F(WebSocketGameTest, GameMoveValid) {
 
 TEST_F(WebSocketGameTest, GameMoveNotYourTurn) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5201, 5202);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5201, 5202, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
@@ -410,7 +413,8 @@ TEST_F(WebSocketGameTest, GameMoveNotYourTurn) {
 
 TEST_F(WebSocketGameTest, GameMoveWin) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5301, 5302);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5301, 5302, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
@@ -439,7 +443,8 @@ TEST_F(WebSocketGameTest, GameMoveWin) {
 
 TEST_F(WebSocketGameTest, GameGiveup) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5401, 5402);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5401, 5402, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
@@ -456,7 +461,8 @@ TEST_F(WebSocketGameTest, GameGiveup) {
 
 TEST_F(WebSocketGameTest, GameReconnect) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5501, 5502);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5501, 5502, &m);
     ASSERT_TRUE(send_move(*m.black_client, m.black_id, 8, 8));
     m.black_client->wait_for_event("game.move");
     m.white_client->wait_for_event("game.move");
@@ -483,7 +489,8 @@ TEST_F(WebSocketGameTest, GameReconnect) {
 
 TEST_F(WebSocketGameTest, GameTimeout) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5601, 5602);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5601, 5602, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
@@ -499,7 +506,8 @@ TEST_F(WebSocketGameTest, GameTimeout) {
 
 TEST_F(WebSocketGameTest, ConcurrentMoves) {
     connect_clients();
-    MatchedClients m = match_two_players(_client1, _client2, 5701, 5702);
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5701, 5702, &m);
     m.black_client->drain_events();
     m.white_client->drain_events();
 
