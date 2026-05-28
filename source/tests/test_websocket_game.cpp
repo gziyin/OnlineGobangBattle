@@ -46,14 +46,6 @@ std::string json_compact(const Json::Value& value) {
     return Json::writeString(builder, value);
 }
 
-gobang::WebsocketServer g_server;
-gobang::ConnectionManager g_conn_mgr;
-gobang::OnlineManager g_online_mgr;
-gobang::Matcher g_matcher;
-gobang::RoomManager g_room_mgr;
-std::shared_ptr<gobang::GameController> g_game_ctrl;
-gobang::WebSocketHandler g_ws_handler;
-
 class TestWebSocketClient {
 public:
     bool connect(const std::string& uri, int timeout_ms = 2000) {
@@ -203,66 +195,75 @@ public:
     void start() {
         gobang::Logger::instance().init("test_websocket_game.log");
 
-        g_conn_mgr.init(&g_server);
-        g_matcher.init(&g_online_mgr);
-        g_matcher.start();
+        // 每次 start 都创建全新 server，避免 websocketpp server 复用导致 terminate
+        server_.reset(new gobang::WebsocketServer());
 
-        g_game_ctrl = gobang::GameController::create();
-        g_game_ctrl->init(&g_room_mgr, &g_online_mgr, &g_conn_mgr, nullptr);
-        g_game_ctrl->set_timeout_seconds(2);
+        conn_mgr_.init(server_.get());
+        matcher_.init(&online_mgr_);
+        matcher_.start();
 
-        g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server,
-                          g_game_ctrl.get());
+        game_ctrl_ = gobang::GameController::create();
+        game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr);
+        game_ctrl_->set_timeout_seconds(2);
 
-        g_server.clear_access_channels(websocketpp::log::alevel::all);
-        g_server.clear_error_channels(websocketpp::log::elevel::all);
-        g_server.init_asio();
-        g_server.set_reuse_addr(true);
+        ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, server_.get(),
+                         game_ctrl_.get());
 
-        g_server.set_validate_handler([](connection_hdl hdl) {
-            auto con = g_server.get_con_from_hdl(hdl);
+        server_->clear_access_channels(websocketpp::log::alevel::all);
+        server_->clear_error_channels(websocketpp::log::elevel::all);
+        server_->init_asio();
+        server_->set_reuse_addr(true);
+
+        server_->set_validate_handler([this](connection_hdl hdl) {
+            auto con = server_->get_con_from_hdl(hdl);
             return is_allowed_websocket_resource(con->get_resource());
         });
 
-        g_server.set_http_handler([](connection_hdl hdl) {
-            auto con = g_server.get_con_from_hdl(hdl);
+        server_->set_http_handler([this](connection_hdl hdl) {
+            auto con = server_->get_con_from_hdl(hdl);
             con->set_body("WebSocket game test server");
             con->set_status(websocketpp::http::status_code::ok);
         });
 
-        g_server.set_open_handler([](connection_hdl hdl) {
-            g_ws_handler.on_open(hdl);
+        server_->set_open_handler([this](connection_hdl hdl) {
+            ws_handler_.on_open(hdl);
         });
 
-        g_server.set_close_handler([](connection_hdl hdl) {
-            g_ws_handler.on_close(hdl);
+        server_->set_close_handler([this](connection_hdl hdl) {
+            ws_handler_.on_close(hdl);
         });
 
-        g_server.set_message_handler(
-            [](connection_hdl hdl, gobang::WebsocketServer::message_ptr msg) {
-                g_ws_handler.on_message(hdl, msg->get_payload());
+        server_->set_message_handler(
+            [this](connection_hdl hdl, gobang::WebsocketServer::message_ptr msg) {
+                ws_handler_.on_message(hdl, msg->get_payload());
             });
 
         websocketpp::lib::asio::ip::tcp::endpoint endpoint(
             websocketpp::lib::asio::ip::address_v4::loopback(), kPort);
-        g_server.listen(endpoint);
-        g_server.start_accept();
+        server_->listen(endpoint);
+        server_->start_accept();
 
-        _thread = std::thread([]() { g_server.run(); });
+        _thread = std::thread([this]() { server_->run(); });
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     void stop() {
-        if (g_game_ctrl) {
-            g_game_ctrl->stop_all_timers();
+        if (game_ctrl_) {
+            game_ctrl_->stop_all_timers();
         }
         websocketpp::lib::error_code ec;
-        g_server.stop_listening(ec);
-        g_server.stop();
+        if (server_) {
+            server_->stop_listening(ec);
+            server_->stop();
+        }
         if (_thread.joinable()) {
             _thread.join();
         }
-        g_matcher.stop();
+        matcher_.stop();
+
+        // 清理各组件，确保下次 start 是全新状态
+        game_ctrl_.reset();
+        server_.reset();
     }
 
     std::string uri() const {
@@ -271,8 +272,18 @@ public:
         return oss.str();
     }
 
+    gobang::RoomManager& room_mgr() { return room_mgr_; }
+    gobang::WebSocketHandler& ws_handler() { return ws_handler_; }
+
 private:
     std::thread _thread;
+    std::unique_ptr<gobang::WebsocketServer> server_;
+    gobang::ConnectionManager conn_mgr_;
+    gobang::OnlineManager online_mgr_;
+    gobang::Matcher matcher_;
+    gobang::RoomManager room_mgr_;
+    std::shared_ptr<gobang::GameController> game_ctrl_;
+    gobang::WebSocketHandler ws_handler_;
 };
 
 std::string make_token(int64_t user_id) {
@@ -371,9 +382,9 @@ TEST_F(WebSocketGameTest, MatchSuccessCreatesRoom) {
     MatchedClients matched{};
     match_two_players(_client1, _client2, 5001, 5002, &matched);
 
-    EXPECT_GT(g_room_mgr.room_count(), 0u);
+    EXPECT_GT(_server.room_mgr().room_count(), 0u);
 
-    gobang::GameRoom* room = g_room_mgr.get_room_by_user(matched.black_id);
+    gobang::GameRoom* room = _server.room_mgr().get_room_by_user(matched.black_id);
     ASSERT_NE(room, nullptr);
     EXPECT_TRUE(room->has_player(matched.black_id));
     EXPECT_TRUE(room->has_player(matched.white_id));
@@ -495,7 +506,7 @@ TEST_F(WebSocketGameTest, GameTimeout) {
     m.white_client->drain_events();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-    g_ws_handler.process_timers();
+    _server.ws_handler().process_timers();
 
     Json::Value over1 = m.black_client->wait_for_event("game.over", 5000);
     Json::Value over2 = m.white_client->wait_for_event("game.over", 5000);
