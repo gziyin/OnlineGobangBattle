@@ -210,19 +210,24 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             return;
         }
 
-        // 防重复登录：如果用户已在线，检查是否有活跃游戏需要重连
+        // 已在线用户重新连接：替换旧连接
         if (_online_mgr->is_online(user_id)) {
-            // 检查用户是否有活跃的游戏房间
+            LOG_INFO("WebSocketHandler: user already online, replacing connection - user_id=" << user_id);
+            // 绑定新连接（替换旧连接）
+            set_user_connection(user_id, hdl);
+            // 如果有活跃游戏房间，发送重连通知
             if (_game_ctrl && _game_ctrl->has_active_room(user_id)) {
-                LOG_INFO("WebSocketHandler: user has active room, allowing reconnect - user_id=" << user_id);
-                // 绑定新连接（替换旧连接）
-                set_user_connection(user_id, hdl);
-                // 发送重连通知给大厅页面
                 send_reconnect_available(user_id, hdl);
-                return;
             }
-            LOG_WARN("WebSocketHandler: duplicate login rejected - user_id=" << user_id);
-            _server->send(hdl, make_error(4009, "account already online"), websocketpp::frame::opcode::text);
+            // 如果是 match.start，继续处理匹配逻辑
+            if (event == "match.start") {
+                std::string resp = handle_match_start(user_id, data);
+                _server->send(hdl, resp, websocketpp::frame::opcode::text);
+            } else {
+                Json::Value resp_data;
+                resp_data["user_id"] = (Json::Int64)user_id;
+                _server->send(hdl, make_response("auth.success", resp_data), websocketpp::frame::opcode::text);
+            }
             return;
         }
 
