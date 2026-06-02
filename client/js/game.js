@@ -205,6 +205,17 @@ function showGameOverModal(data) {
     if (elements.scoreChange) {
         const delta = data.score_change != null ? data.score_change : 0;
         elements.scoreChange.textContent = `积分变化: ${delta >= 0 ? '+' : ''}${delta}`;
+
+        // 更新 sessionStorage 中的分数，使回到大厅后显示最新积分
+        try {
+            const userInfo = JSON.parse(sessionStorage.getItem('gobang_user') || '{}');
+            if (userInfo.score != null) {
+                userInfo.score = Math.max(0, userInfo.score + delta);
+                sessionStorage.setItem('gobang_user', JSON.stringify(userInfo));
+            }
+        } catch (e) {
+            // ignore sessionStorage errors
+        }
     }
     elements.gameOverModal.classList.remove('hidden');
 }

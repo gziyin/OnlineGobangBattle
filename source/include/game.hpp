@@ -277,9 +277,22 @@ private:
             winner["user_id"] = winner_id;
             msg["data"]["winner"] = winner;
         }
-        msg["data"]["score_change"] = 25;
+        // 分别给胜者和败者发送各自的积分变化
+        if (winner_id != 0 && loser_id != 0) {
+            Json::Value winner_msg = msg;
+            winner_msg["data"]["score_change"] = 25;
+            Json::Value loser_msg = msg;
+            loser_msg["data"]["score_change"] = -15;
 
-        broadcast_to_room(room_id, msg.toStyledString());
+            if (conn_mgr_) {
+                conn_mgr_->send(winner_id, winner_msg.toStyledString());
+                conn_mgr_->send(loser_id, loser_msg.toStyledString());
+            }
+        } else {
+            // 平局等情况，广播给双方，分数不变
+            msg["data"]["score_change"] = 0;
+            broadcast_to_room(room_id, msg.toStyledString());
+        }
 
         int64_t p1, p2;
         room->get_player_ids(p1, p2);
