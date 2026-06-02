@@ -86,14 +86,20 @@ if (!conn) {
 ```
 
 错误码：
-| 含义 | 错误码 |
-|------|--------|
-| 无效 JSON | 4000 |
-| 无效/缺失 token，未认证 | 4001 |
-| 未知事件 | 4002 |
-| 用户状态不正确（如不在大厅） | 4003 |
-| 入队失败 | 4004 |
-| 取消失败 | 4005 |
+| 含义 | 错误码 | 来源 |
+|------|--------|------|
+| 无效 JSON | 4000 | websocket_handler.hpp |
+| 无效/缺失 token，未认证 | 4001 | websocket_handler.hpp |
+| 未知事件 | 4002 | websocket_handler.hpp |
+| 用户状态不正确（如不在大厅） | 4003 | websocket_handler.hpp |
+| 入队失败 | 4004 | websocket_handler.hpp |
+| 取消失败 | 4005 | websocket_handler.hpp |
+| 不在房间中 | 4001 | game.hpp（handle_move） |
+| 无效落子（非当前回合/越界/已有棋子） | 4002 | game.hpp（handle_move） |
+| 缺少 row 或 col 参数 | 4002 | websocket_handler.hpp（handle_game_move） |
+| 账号已在线（重复登录） | 4009 | websocket_handler.hpp（on_message） |
+
+> **注意**: 错误码 4001 和 4002 在不同上下文中含义不同。game.hpp 的 4001 = "not in room"，websocket_handler.hpp 的 4001 = "invalid token"。
 
 参考：`source/include/websocket_handler.hpp` —— `make_error()`
 

@@ -260,6 +260,13 @@ const eventHandlers = {
 
     'error': (data) => {
         showNotification(data.message || '操作失败');
+        if (data.code === 4009) {
+            // 账号已在线，停止重连，跳转登录页
+            shouldReconnect = false;
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+        }
     }
 };
 

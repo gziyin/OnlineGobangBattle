@@ -19,3 +19,4 @@
 | [错误处理](./error-handling.md) | JSON 响应、LOG_ERROR + return 模式 | 已填充 |
 | [质量规范](./quality-guidelines.md) | GTest、CTest 标签、线程安全、代码审查 | 已填充 |
 | [日志规范](./logging-guidelines.md) | 异步单例日志器、LOG_* 宏 | 已填充 |
+| [游戏逻辑规范](./game-logic-spec.md) | 落子流程、GameResult 枚举、胜负判定 | 已填充 |

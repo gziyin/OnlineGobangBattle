@@ -111,6 +111,18 @@ ctest --test-dir source/build -L smoke --output-on-failure
 
 ---
 
+## 测试中的线程控制与对象生命周期（CRITICAL）
+
+集成测试涉及 `Logger`、`Matcher`、WebSocket++/ASIO 等多线程组件，**重点防止 `std::terminate` 与随机崩溃**：
+
+- **避免跨用例复用全局可变对象**：不要在 `source/tests/*.cpp` 里复用全局 `WebsocketServer/Matcher/GameController/...` 并反复 `start()/stop()`；推荐每个用例创建独立实例（fixture 成员/本地 server 包装类成员）。
+- **Logger 只 init 一次**：`Logger::init` 可能包含线程，重复 init 易触发 `std::terminate`；用 `std::call_once` 或在 `main()` 初始化一次。
+- **线程要 stop + join**：测试启动的 server/client/worker 线程必须在 `TearDown()`/`stop()` 中停止并 `join()`；禁止析构时线程仍 `joinable()`。
+- **ASSERT_* 的返回类型约束**：禁止在“返回非 void”的 helper 内使用 `ASSERT_*`；改为 `void + out 参数` 或返回 `testing::AssertionResult`。
+- **事件语义对齐**：断言要匹配实现（例如胜负步可能只发 `game.over`，不再发 `game.move`）。
+
+---
+
 ## 代码审查清单
 
 - [ ] 新 `.hpp` 文件使用 `#pragma once` 和 `namespace gobang`

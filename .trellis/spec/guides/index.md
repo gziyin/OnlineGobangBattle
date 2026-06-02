@@ -23,6 +23,8 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Git Commit Guidelines](./git-commit-guidelines.md) | Standardize commit messages (`git_commit_type`) | Before committing changes |
+| [Remote Deploy Guide](./remote-deploy-guide.md) | 从本地部署到远程服务器的完整流程 | 部署、编译、配置 Nginx、排查问题 |
 
 ---
 

@@ -205,6 +205,13 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             return;
         }
 
+        // 防重复登录：如果用户已在线，拒绝新连接
+        if (_online_mgr->is_online(user_id)) {
+            LOG_WARN("WebSocketHandler: duplicate login rejected - user_id=" << user_id);
+            _server->send(hdl, make_error(4009, "account already online"), websocketpp::frame::opcode::text);
+            return;
+        }
+
         // 绑定 user_id 与连接
         set_user_connection(user_id, hdl);
 

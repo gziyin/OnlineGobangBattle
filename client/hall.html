@@ -379,6 +379,13 @@
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
+                } else if (data.code === 4009) {
+                    // 账号已在线
+                    shouldReconnect = false;
+                    showNotification('该账号已登录', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
                 } else if (data.code === 4003 || data.code === 4004 || data.code === 4005) {
                     // 状态错误：回到 IDLE
                     updateUI(AppState.IDLE);

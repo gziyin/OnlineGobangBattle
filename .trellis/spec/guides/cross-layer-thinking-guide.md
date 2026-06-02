@@ -85,6 +85,22 @@ After implementation:
 
 ---
 
+## WebSocket 连接生命周期管理
+
+当涉及页面跳转或多连接场景时，需要特别注意连接生命周期边界：
+
+### Checklist: WebSocket 连接相关功能
+
+- [ ] **连接注册/注销**：`on_close` 是否检查被关闭的连接是否仍是当前活跃连接？
+- [ ] **页面跳转**：旧页面关闭连接和新页面建立连接的时序是否安全？
+- [ ] **状态重置**：新连接认证时，是否正确清理旧连接的 handle 映射？
+- [ ] **身份隔离**：多标签页场景下，每个标签页的身份是否独立（`sessionStorage` vs `localStorage`）？
+- [ ] **消息丢失**：连接断开时，待发送的消息是否会被静默丢弃？
+
+**Real-world example**: 用户从大厅跳转到房间页面时，旧连接 `on_close` 延迟触发，误删新连接的注册信息，导致落子消息被静默丢弃。修复：`on_close` 比对连接指针，只在当前连接关闭时才清理。
+
+---
+
 ## Cross-Platform Template Consistency
 
 In Trellis, command templates (e.g., `record-session.md`) exist in **multiple platforms** with identical or near-identical content. This is a cross-layer boundary.
