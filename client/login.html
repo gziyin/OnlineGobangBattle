@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线五子棋 - 登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            width: 400px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            color: #ccc;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        input:focus {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        input::placeholder {
+            color: #666;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-login {
+            background: #4a90d9;
+            color: white;
+        }
+        .btn-login:hover {
+            background: #357abd;
+        }
+        .btn-register {
+            background: #2ecc71;
+            color: white;
+        }
+        .btn-register:hover {
+            background: #27ae60;
+        }
+        .error-msg {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 15px;
+            min-height: 20px;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .notification.success {
+            background: rgba(46, 204, 113, 0.9);
+        }
+        .notification.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🎮 在线五子棋</h1>
+        <form id="authForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" placeholder="请输入密码" required>
+            </div>
+            <div class="error-msg" id="errorMsg"></div>
+            <div class="btn-group">
+                <button type="submit" class="btn-login">登录</button>
+                <button type="button" class="btn-register" id="registerBtn">注册</button>
+            </div>
+        </form>
+    </div>
+    <div class="notification" id="notification"></div>
+
+    <script src="js/websocket.js"></script>
+    <script>
+        const API_BASE = window.location.origin + '/api/v1/auth';
+
+        function showNotification(msg, type = 'info') {
+            const n = document.getElementById('notification');
+            n.textContent = msg;
+            n.className = `notification ${type} show`;
+            setTimeout(() => n.classList.remove('show'), 3000);
+        }
+
+        async function authRequest(endpoint, username, password) {
+            const resp = await fetch(`${API_BASE}/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            return await resp.json();
+        }
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = '';
+
+            if (!username || !password) {
+                errorMsg.textContent = '请填写用户名和密码';
+                return;
+            }
+
+            try {
+                const result = await authRequest('login', username, password);
+                if (result.success) {
+                    localStorage.setItem('gobang_token', result.token);
+                    localStorage.setItem('gobang_user', JSON.stringify({
+                        id: result.user_id,
+                        username: username,
+                        score: result.score || 1000
+                    }));
+                    showNotification('登录成功！', 'success');
+                    setTimeout(() => window.location.href = 'hall.html', 1000);
+                } else {
+                    errorMsg.textContent = result.message || '登录失败';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误，请重试';
+            }
+        });
+
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = '';
+
+            if (!username || !password) {
+                errorMsg.textContent = '请填写用户名和密码';
+                return;
+            }
+
+            try {
+                const result = await authRequest('register', username, password);
+                if (result.success) {
+                    showNotification('注册成功！请登录', 'success');
+                } else {
+                    errorMsg.textContent = result.message || '注册失败';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误，请重试';
+            }
+        });
+    </script>
+</body>
+</html>
