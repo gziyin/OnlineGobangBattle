@@ -115,8 +115,11 @@ public:
     }
 
     void handle_move(int64_t user_id, int row, int col) {
+        LOG_INFO("handle_move: user_id=" << user_id << ", row=" << row << ", col=" << col);
+
         GameRoom* room = room_mgr_->get_room_by_user(user_id);
         if (!room) {
+            LOG_WARN("handle_move: user_id=" << user_id << " 不在任何房间中");
             send_error(user_id, 4001, "not in room");
             return;
         }
@@ -124,6 +127,7 @@ public:
         GameResult result = room->place_piece(user_id, row, col);
         if (result == GameResult::NONE) {
             // place_piece 返回 NONE 表示落子失败（非当前回合或位置无效）
+            // 详细日志已在 room.hpp 的 place_piece 中输出
             send_error(user_id, 4002, "invalid move");
             return;
         }

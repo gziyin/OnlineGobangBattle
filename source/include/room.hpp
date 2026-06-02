@@ -147,12 +147,24 @@ public:
     GameResult place_piece(int64_t user_id, int row, int col) {
         std::lock_guard<std::mutex> lock(mtx_);
 
-        if (status_ != RoomStatus::PLAYING) return GameResult::NONE;
+        if (status_ != RoomStatus::PLAYING) {
+            LOG_WARN("place_piece 失败: 房间 " << room_id_ << " 不在 PLAYING 状态, status=" << static_cast<int>(status_));
+            return GameResult::NONE;
+        }
 
         int idx = find_player_index(user_id);
-        if (idx < 0 || idx != current_turn_index_) return GameResult::NONE;
+        if (idx < 0 || idx != current_turn_index_) {
+            LOG_WARN("place_piece 失败: user_id=" << user_id
+                     << " 不是当前回合玩家, idx=" << idx
+                     << ", current_turn_index=" << current_turn_index_
+                     << ", players=[" << players_[0].user_id << "," << players_[1].user_id << "]");
+            return GameResult::NONE;
+        }
 
-        if (!is_valid_move(row, col)) return GameResult::NONE;
+        if (!is_valid_move(row, col)) {
+            LOG_WARN("place_piece 失败: 无效坐标 (" << row << "," << col << "), board值=" << board_[row][col]);
+            return GameResult::NONE;
+        }
 
         PieceColor color = players_[idx].color;
         board_[row][col] = static_cast<int>(color);

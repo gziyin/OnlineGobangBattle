@@ -345,11 +345,14 @@ inline std::string WebSocketHandler::handle_ping(int64_t user_id, const Json::Va
 }
 
 inline void WebSocketHandler::handle_game_move(int64_t user_id, const Json::Value& data) {
+    LOG_INFO("handle_game_move: user_id=" << user_id
+             << ", data=" << data.toStyledString());
     if (!_game_ctrl) {
         send_error_to_user(user_id, 5000, "game not available");
         return;
     }
     if (!data.isMember("row") || !data.isMember("col")) {
+        LOG_WARN("handle_game_move: 缺少 row 或 col 字段");
         send_error_to_user(user_id, 4002, "missing row or col");
         return;
     }
