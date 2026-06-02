@@ -203,6 +203,7 @@ register_gobang_ctest(websocket_smoke smoke)
 
 add_gobang_test(test_websocket_m3_flow tests/test_websocket_m3_flow.cpp
     ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${GTEST_LIBRARIES}
     Threads::Threads
