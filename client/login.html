@@ -172,9 +172,9 @@
                 if (result.success) {
                     localStorage.setItem('gobang_token', result.token);
                     localStorage.setItem('gobang_user', JSON.stringify({
-                        id: result.user_id,
-                        username: username,
-                        score: result.score || 1000
+                        id: result.user.id,
+                        username: result.user.username,
+                        score: result.user.score || 1000
                     }));
                     showNotification('登录成功！', 'success');
                     setTimeout(() => window.location.href = 'hall.html', 1000);
