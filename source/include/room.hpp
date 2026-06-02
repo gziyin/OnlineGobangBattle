@@ -31,12 +31,13 @@ enum class PieceColor {
 };
 
 enum class GameResult {
-    NONE      = 0,
-    BLACK_WIN = 1,
-    WHITE_WIN = 2,
-    DRAW      = 3,
-    TIMEOUT   = 4,
-    GIVEUP    = 5
+    NONE         = 0,
+    BLACK_WIN    = 1,
+    WHITE_WIN    = 2,
+    DRAW         = 3,
+    TIMEOUT      = 4,
+    GIVEUP       = 5,
+    MOVE_SUCCESS = 6  // 落子成功，游戏继续
 };
 
 // ============================================================
@@ -171,7 +172,7 @@ public:
         }
 
         current_turn_index_ = 1 - current_turn_index_;
-        return GameResult::NONE;
+        return GameResult::MOVE_SUCCESS;
     }
 
     GameResult give_up(int64_t user_id) {

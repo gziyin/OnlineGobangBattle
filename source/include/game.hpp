@@ -123,11 +123,13 @@ public:
 
         GameResult result = room->place_piece(user_id, row, col);
         if (result == GameResult::NONE) {
-            if (room->get_board(row, col) == 0) {
-                send_error(user_id, 4002, "invalid move");
-                return;
-            }
+            // place_piece 返回 NONE 表示落子失败（非当前回合或位置无效）
+            send_error(user_id, 4002, "invalid move");
+            return;
+        }
 
+        if (result == GameResult::MOVE_SUCCESS) {
+            // 落子成功，游戏继续
             PieceColor color;
             room->get_player_color(user_id, color);
 
@@ -144,6 +146,18 @@ public:
 
             start_timeout_timer(room->get_room_id());
         } else if (result == GameResult::BLACK_WIN || result == GameResult::WHITE_WIN) {
+            // 落子成功，有胜负
+            // 先广播最后一步落子
+            PieceColor color;
+            room->get_player_color(user_id, color);
+            Json::Value move_msg;
+            move_msg["event"] = "game.move";
+            move_msg["data"]["row"] = row;
+            move_msg["data"]["col"] = col;
+            move_msg["data"]["color"] = (color == PieceColor::BLACK) ? "black" : "white";
+            move_msg["data"]["next_turn"] = "none";
+            broadcast_to_room(room->get_room_id(), move_msg.toStyledString());
+
             int64_t winner_id, loser_id;
             get_winner_loser(room, result, winner_id, loser_id);
             on_game_over(room->get_room_id(), result, winner_id, loser_id);

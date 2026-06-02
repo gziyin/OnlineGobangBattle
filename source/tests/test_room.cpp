@@ -51,7 +51,7 @@ TEST_F(GameRoomTest, BlackGoesFirst) {
 
 TEST_F(GameRoomTest, PlacePieceValidMove) {
     GameResult r = room_->place_piece(1001, 7, 7);
-    EXPECT_EQ(r, GameResult::NONE);
+    EXPECT_EQ(r, GameResult::MOVE_SUCCESS);
     EXPECT_EQ(room_->get_board(7, 7), 1);  // 黑子
     EXPECT_EQ(room_->get_current_turn(), 1002);  // 轮到白方
     EXPECT_EQ(room_->get_move_count(), 1);
