@@ -254,9 +254,9 @@
             logoutBtn: document.getElementById('logoutBtn')
         };
 
-        // 从 localStorage 获取 token
+        // 从 sessionStorage 获取 token
         function loadToken() {
-            token = localStorage.getItem('gobang_token');
+            token = sessionStorage.getItem('gobang_token');
             if (!token) {
                 // 没有 token，跳转到登录页
                 window.location.href = 'login.html';
@@ -265,7 +265,7 @@
 
             // 解析 token 获取用户信息（简单实现）
             // 实际应由服务端验证后返回
-            const userInfo = JSON.parse(localStorage.getItem('gobang_user') || '{}');
+            const userInfo = JSON.parse(sessionStorage.getItem('gobang_user') || '{}');
             userId = userInfo.id;
             username = userInfo.username;
             score = userInfo.score || 1000;
@@ -374,8 +374,8 @@
                 // 特殊错误处理
                 if (data.code === 4001) {
                     // token 失效
-                    localStorage.removeItem('gobang_token');
-                    localStorage.removeItem('gobang_user');
+                    sessionStorage.removeItem('gobang_token');
+                    sessionStorage.removeItem('gobang_user');
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
@@ -477,8 +477,8 @@
 
         elements.logoutBtn.addEventListener('click', () => {
             shouldReconnect = false;
-            localStorage.removeItem('gobang_token');
-            localStorage.removeItem('gobang_user');
+            sessionStorage.removeItem('gobang_token');
+            sessionStorage.removeItem('gobang_user');
             wsClient.close();
             window.location.href = 'login.html';
         });

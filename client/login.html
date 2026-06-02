@@ -170,8 +170,8 @@
             try {
                 const result = await authRequest('login', username, password);
                 if (result.success) {
-                    localStorage.setItem('gobang_token', result.token);
-                    localStorage.setItem('gobang_user', JSON.stringify({
+                    sessionStorage.setItem('gobang_token', result.token);
+                    sessionStorage.setItem('gobang_user', JSON.stringify({
                         id: result.user.id,
                         username: result.user.username,
                         score: result.user.score || 1000

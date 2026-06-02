@@ -74,7 +74,7 @@ function updateTurnIndicator() {
 }
 
 function updateUI() {
-    const user = JSON.parse(localStorage.getItem('gobang_user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('gobang_user') || '{}');
     if (elements.selfName) {
         elements.selfName.textContent = user.username || '我';
     }
@@ -257,13 +257,13 @@ function initFromUrl() {
     gameState.roomId = urlParams.get('room_id');
     gameState.myColor = urlParams.get('color');
 
-    const token = localStorage.getItem('gobang_token');
+    const token = sessionStorage.getItem('gobang_token');
     if (!token) {
         window.location.href = 'login.html';
         return false;
     }
 
-    const user = JSON.parse(localStorage.getItem('gobang_user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('gobang_user') || '{}');
     gameState.myUserId = user.id;
     if (!gameState.myUserId) {
         window.location.href = 'login.html';
@@ -273,7 +273,7 @@ function initFromUrl() {
 }
 
 function initWebSocket() {
-    const token = localStorage.getItem('gobang_token');
+    const token = sessionStorage.getItem('gobang_token');
     const wsHost = window.location.hostname || '127.0.0.1';
 
     wsClient = new GobangWebSocket({
@@ -333,7 +333,7 @@ function setupBoardClick() {
         if (gameState.board[row][col] !== 0) return;
 
         wsClient.send('game.move', {
-            token: localStorage.getItem('gobang_token'),
+            token: sessionStorage.getItem('gobang_token'),
             row: row,
             col: col
         });
@@ -346,7 +346,7 @@ function setupActions() {
             if (!gameState.gameActive || !wsClient) return;
             if (confirm('确定要认输吗？')) {
                 wsClient.send('game.giveup', {
-                    token: localStorage.getItem('gobang_token')
+                    token: sessionStorage.getItem('gobang_token')
                 });
             }
         });
