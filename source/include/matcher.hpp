@@ -397,14 +397,8 @@ inline void Matcher::finalize_match(const MatchRequest& p1, const MatchRequest& 
     result.room_id = generate_room_id();
     result.player1_id = p1.user_id;
     result.player2_id = p2.user_id;
-
-    if ((result.room_id % 2) == 0) {
-        result.player1_color = 1;
-        result.player2_color = 2;
-    } else {
-        result.player1_color = 2;
-        result.player2_color = 1;
-    }
+    result.player1_color = 1;  // BLACK，与 handle_game_start 一致
+    result.player2_color = 2;  // WHITE
 
     if (_match_callback) {
         _match_callback(result);
