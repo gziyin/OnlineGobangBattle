@@ -88,6 +88,11 @@ private:
     void handle_game_move(int64_t user_id, const Json::Value& data);
     void handle_game_giveup(int64_t user_id);
     void handle_game_reconnect(int64_t user_id, const Json::Value& data);
+    void handle_reconnect_accept(int64_t user_id);
+    void handle_reconnect_reject(int64_t user_id);
+
+    // 发送重连通知给大厅页面
+    void send_reconnect_available(int64_t user_id, WebsocketConnectionHdl hdl);
 
     // 工具函数
     std::string make_response(const std::string& event, const Json::Value& data);
@@ -205,8 +210,17 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             return;
         }
 
-        // 防重复登录：如果用户已在线，拒绝新连接
+        // 防重复登录：如果用户已在线，检查是否有活跃游戏需要重连
         if (_online_mgr->is_online(user_id)) {
+            // 检查用户是否有活跃的游戏房间
+            if (_game_ctrl && _game_ctrl->has_active_room(user_id)) {
+                LOG_INFO("WebSocketHandler: user has active room, allowing reconnect - user_id=" << user_id);
+                // 绑定新连接（替换旧连接）
+                set_user_connection(user_id, hdl);
+                // 发送重连通知给大厅页面
+                send_reconnect_available(user_id, hdl);
+                return;
+            }
             LOG_WARN("WebSocketHandler: duplicate login rejected - user_id=" << user_id);
             _server->send(hdl, make_error(4009, "account already online"), websocketpp::frame::opcode::text);
             return;
@@ -250,6 +264,12 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
         return;
     } else if (event == "game.reconnect") {
         handle_game_reconnect(user_id, data);
+        return;
+    } else if (event == "reconnect.accept") {
+        handle_reconnect_accept(user_id);
+        return;
+    } else if (event == "reconnect.reject") {
+        handle_reconnect_reject(user_id);
         return;
     } else {
         LOG_WARN("WebSocketHandler: unknown event: " << event);
@@ -469,6 +489,57 @@ inline int64_t WebSocketHandler::verify_token_from_data(const Json::Value& data)
     }
     std::string token = data["token"].asString();
     return security::jwt_verify(token);
+}
+
+inline void WebSocketHandler::handle_reconnect_accept(int64_t user_id) {
+    if (!_game_ctrl) {
+        send_error_to_user(user_id, 5000, "game not available");
+        return;
+    }
+    _game_ctrl->handle_reconnect_accept(user_id);
+}
+
+inline void WebSocketHandler::handle_reconnect_reject(int64_t user_id) {
+    if (!_game_ctrl) {
+        send_error_to_user(user_id, 5000, "game not available");
+        return;
+    }
+    _game_ctrl->handle_reconnect_reject(user_id);
+}
+
+inline void WebSocketHandler::send_reconnect_available(int64_t user_id, WebsocketConnectionHdl hdl) {
+    if (!_game_ctrl) return;
+
+    // 获取房间信息
+    GameRoom* room = _game_ctrl->get_room_by_user(user_id);
+    if (!room) return;
+
+    Json::Value msg;
+    msg["event"] = "reconnect.available";
+    msg["data"]["room_id"] = room->get_room_id();
+    msg["data"]["board"] = room->get_board_state();
+
+    int64_t opponent_id = room->get_opponent_id(user_id);
+    Json::Value opponent;
+    opponent["user_id"] = opponent_id;
+    msg["data"]["opponent"] = opponent;
+
+    PieceColor color;
+    room->get_player_color(user_id, color);
+    msg["data"]["color"] = (color == PieceColor::BLACK) ? "black" : "white";
+
+    msg["data"]["current_turn"] = room->get_current_turn_color_str();
+
+    // 剩余断线超时秒数
+    int elapsed = room->get_disconnect_elapsed();
+    int remaining = 60 - elapsed;
+    if (remaining < 1) remaining = 1;
+    msg["data"]["timeout_remaining"] = remaining;
+
+    _server->send(hdl, msg.toStyledString(), websocketpp::frame::opcode::text);
+
+    LOG_INFO("WebSocketHandler: sent reconnect.available to user_id=" << user_id
+             << ", room=" << room->get_room_id() << ", remaining=" << remaining << "s");
 }
 
 } // namespace gobang

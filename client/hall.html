@@ -178,6 +178,81 @@
         .connection-status.connecting {
             color: #f39c12;
         }
+
+        /* 重连模态框 */
+        .reconnect-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .reconnect-modal.hidden {
+            display: none;
+        }
+        .reconnect-content {
+            background: #1e2a3a;
+            padding: 32px 40px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 360px;
+            max-width: 480px;
+        }
+        .reconnect-content h2 {
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+        .reconnect-content .reconnect-info {
+            color: #ccc;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .reconnect-content .reconnect-countdown {
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+        .reconnect-content .board-preview-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .reconnect-content #boardPreview {
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+        .reconnect-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+        .reconnect-actions .btn-accept {
+            background: #2ecc71;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .reconnect-actions .btn-accept:hover {
+            background: #27ae60;
+        }
+        .reconnect-actions .btn-reject {
+            background: #e74c3c;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .reconnect-actions .btn-reject:hover {
+            background: #c0392b;
+        }
     </style>
 </head>
 <body>
@@ -211,6 +286,22 @@
             <!-- 等待信息 -->
             <div class="waiting-info" id="waitingInfo" style="display: none;">
                 等待时间: <span class="time" id="waitTime">0</span> 秒
+            </div>
+        </div>
+    </div>
+
+    <!-- 重连模态框 -->
+    <div class="reconnect-modal hidden" id="reconnectModal">
+        <div class="reconnect-content">
+            <h2>🔄 发现未完成的游戏</h2>
+            <div class="reconnect-info" id="reconnectInfo">对手正在等待你重连...</div>
+            <div class="reconnect-countdown" id="reconnectCountdown">60</div>
+            <div class="board-preview-container">
+                <canvas id="boardPreview" width="300" height="300"></canvas>
+            </div>
+            <div class="reconnect-actions">
+                <button class="btn-accept" id="btnReconnectAccept">重连进入</button>
+                <button class="btn-reject" id="btnReconnectReject">放弃认输</button>
             </div>
         </div>
     </div>
@@ -399,6 +490,16 @@
             'auth.success': (data) => {
                 userId = data.user_id;
                 updateConnectionStatus('connected');
+            },
+
+            'reconnect.available': (data) => {
+                showReconnectModal(data);
+            },
+
+            'reconnect.accepted': (data) => {
+                hideReconnectModal();
+                // 跳转到房间页
+                window.location.href = `room.html?room_id=${data.room_id}&color=${data.color}`;
             }
         };
 
@@ -488,6 +589,112 @@
             sessionStorage.removeItem('gobang_user');
             wsClient.close();
             window.location.href = 'login.html';
+        });
+
+        // ===== 重连模态框 =====
+
+        let reconnectCountdownTimer = null;
+        let reconnectRoomData = null;
+
+        function showReconnectModal(data) {
+            reconnectRoomData = data;
+
+            // 更新对手信息
+            const infoEl = document.getElementById('reconnectInfo');
+            const opponentId = data.opponent ? data.opponent.user_id : '未知';
+            infoEl.textContent = `对手(ID: ${opponentId})正在等待你重连...`;
+
+            // 绘制棋盘预览
+            drawBoardPreview(data.board);
+
+            // 启动倒计时
+            let remaining = data.timeout_remaining || 60;
+            const countdownEl = document.getElementById('reconnectCountdown');
+            countdownEl.textContent = remaining;
+
+            if (reconnectCountdownTimer) clearInterval(reconnectCountdownTimer);
+            reconnectCountdownTimer = setInterval(() => {
+                remaining--;
+                countdownEl.textContent = remaining;
+                if (remaining <= 0) {
+                    clearInterval(reconnectCountdownTimer);
+                    hideReconnectModal();
+                    showNotification('重连超时', 'error');
+                }
+            }, 1000);
+
+            // 显示模态框
+            document.getElementById('reconnectModal').classList.remove('hidden');
+        }
+
+        function hideReconnectModal() {
+            document.getElementById('reconnectModal').classList.add('hidden');
+            if (reconnectCountdownTimer) {
+                clearInterval(reconnectCountdownTimer);
+                reconnectCountdownTimer = null;
+            }
+            reconnectRoomData = null;
+        }
+
+        function drawBoardPreview(boardStr) {
+            const canvas = document.getElementById('boardPreview');
+            if (!canvas || !boardStr) return;
+            const ctx = canvas.getContext('2d');
+            const size = 300;
+            const boardSize = 15;
+            const cellSize = (size - 40) / (boardSize - 1);
+            const padding = 20;
+
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = '#dcb35c';
+            ctx.fillRect(0, 0, size, size);
+
+            // 画网格
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < boardSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(padding, padding + i * cellSize);
+                ctx.lineTo(padding + (boardSize - 1) * cellSize, padding + i * cellSize);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(padding + i * cellSize, padding);
+                ctx.lineTo(padding + i * cellSize, padding + (boardSize - 1) * cellSize);
+                ctx.stroke();
+            }
+
+            // 画棋子
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    const ch = boardStr.charAt(r * boardSize + c);
+                    if (ch === '1' || ch === '2') {
+                        const x = padding + c * cellSize;
+                        const y = padding + r * cellSize;
+                        ctx.beginPath();
+                        ctx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
+                        ctx.fillStyle = ch === '1' ? '#000' : '#fff';
+                        ctx.fill();
+                        ctx.strokeStyle = '#333';
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // 重连按钮事件
+        document.getElementById('btnReconnectAccept').addEventListener('click', () => {
+            if (wsClient) {
+                wsClient.send('reconnect.accept', { token: token });
+            }
+        });
+
+        document.getElementById('btnReconnectReject').addEventListener('click', () => {
+            if (confirm('拒绝重连将被判负，确定放弃吗？')) {
+                if (wsClient) {
+                    wsClient.send('reconnect.reject', { token: token });
+                }
+                hideReconnectModal();
+            }
         });
 
         // 页面加载初始化

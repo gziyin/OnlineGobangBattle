@@ -53,6 +53,32 @@ struct PlayerInfo {
     PlayerInfo(int64_t uid, PieceColor c) : user_id(uid), color(c), ready(true) {}
 };
 
+// 断线状态跟踪
+struct DisconnectState {
+    bool        active = false;
+    int64_t     user_id = 0;
+    std::chrono::steady_clock::time_point disconnect_time;
+
+    void set(int64_t uid) {
+        active = true;
+        user_id = uid;
+        disconnect_time = std::chrono::steady_clock::now();
+    }
+
+    void clear() {
+        active = false;
+        user_id = 0;
+    }
+
+    // 获取已断线秒数
+    int elapsed_seconds() const {
+        if (!active) return 0;
+        auto now = std::chrono::steady_clock::now();
+        return static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+            now - disconnect_time).count());
+    }
+};
+
 // ============================================================
 // GameRoom
 // ============================================================
@@ -140,6 +166,50 @@ public:
         std::lock_guard<std::mutex> lock(mtx_);
         player1_id = players_[0].user_id;
         player2_id = players_[1].user_id;
+    }
+
+    // ===== 断线管理 =====
+
+    void mark_disconnected(int64_t user_id) {
+        std::lock_guard<std::mutex> lock(mtx_);
+        disconnect_state_.set(user_id);
+        LOG_INFO("房间 " << room_id_ << " 玩家 " << user_id << " 标记为断线");
+    }
+
+    void clear_disconnected() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        disconnect_state_.clear();
+    }
+
+    bool is_disconnected() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return disconnect_state_.active;
+    }
+
+    int64_t get_disconnected_user_id() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return disconnect_state_.active ? disconnect_state_.user_id : 0;
+    }
+
+    int get_disconnect_elapsed() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return disconnect_state_.elapsed_seconds();
+    }
+
+    int64_t get_player1_id() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return players_[0].user_id;
+    }
+
+    int64_t get_player2_id() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return players_[1].user_id;
+    }
+
+    std::string get_current_turn_color_str() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        if (status_ != RoomStatus::PLAYING) return "none";
+        return (players_[current_turn_index_].color == PieceColor::BLACK) ? "black" : "white";
     }
 
     // ===== 游戏操作 =====
@@ -248,6 +318,7 @@ private:
     PlayerInfo       players_[2];
     int              current_turn_index_;
     int              move_count_;
+    DisconnectState  disconnect_state_;
     mutable std::mutex mtx_;
 };
 

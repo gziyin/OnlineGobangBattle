@@ -254,8 +254,19 @@ const eventHandlers = {
         restoreBoard(data.board);
         gameState.isMyTurn = data.current_turn === gameState.myColor;
         gameState.gameActive = true;
+        hideDisconnectOverlay();
         updateUI();
         updateTurnIndicator();
+    },
+
+    'opponent.disconnected': (data) => {
+        const timeout = data.timeout_seconds || 60;
+        showDisconnectOverlay(timeout);
+    },
+
+    'opponent.reconnected': (data) => {
+        hideDisconnectOverlay();
+        showNotification('对手已重连');
     },
 
     'error': (data) => {
@@ -378,6 +389,62 @@ function setupActions() {
             }
             window.location.href = 'hall.html';
         });
+    }
+}
+
+// ===== 对手断线覆盖层 =====
+
+let disconnectOverlayTimer = null;
+
+function showDisconnectOverlay(timeoutSeconds) {
+    // 移除已有覆盖层
+    hideDisconnectOverlay();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'disconnect-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 900; flex-direction: column; gap: 16px;
+    `;
+
+    const text = document.createElement('div');
+    text.style.cssText = 'font-size: 20px; color: #fff;';
+    text.textContent = '对手已断线，等待重连中...';
+
+    const countdown = document.createElement('div');
+    countdown.id = 'disconnect-countdown';
+    countdown.style.cssText = 'font-size: 48px; color: #ffd700; font-weight: bold;';
+    countdown.textContent = timeoutSeconds;
+
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size: 14px; color: #999;';
+    hint.textContent = '超时后将自动判对方负';
+
+    overlay.appendChild(text);
+    overlay.appendChild(countdown);
+    overlay.appendChild(hint);
+    document.body.appendChild(overlay);
+
+    let remaining = timeoutSeconds;
+    if (disconnectOverlayTimer) clearInterval(disconnectOverlayTimer);
+    disconnectOverlayTimer = setInterval(() => {
+        remaining--;
+        const el = document.getElementById('disconnect-countdown');
+        if (el) el.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(disconnectOverlayTimer);
+            disconnectOverlayTimer = null;
+        }
+    }, 1000);
+}
+
+function hideDisconnectOverlay() {
+    const overlay = document.getElementById('disconnect-overlay');
+    if (overlay) overlay.remove();
+    if (disconnectOverlayTimer) {
+        clearInterval(disconnectOverlayTimer);
+        disconnectOverlayTimer = null;
     }
 }
 
