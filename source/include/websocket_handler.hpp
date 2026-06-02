@@ -143,9 +143,29 @@ inline void WebSocketHandler::on_open(WebsocketConnectionHdl hdl) {
 }
 
 inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
-    int64_t user_id = get_user_id_from_hdl(hdl);
+    int64_t user_id = 0;
+    {
+        std::lock_guard<std::mutex> lock(_hdl_user_mtx);
+        auto conn = hdl.lock();
+        if (!conn) return;
+        auto it = _hdl_to_user_id.find(conn.get());
+        if (it == _hdl_to_user_id.end()) return;
+        user_id = it->second;
+        _hdl_to_user_id.erase(it);
+    }
 
     if (user_id > 0) {
+        // 检查被关闭的连接是否仍是当前活跃连接，避免旧连接 on_close 误删新连接
+        WebsocketConnectionHdl current_hdl;
+        if (_conn_mgr->get(user_id, current_hdl)) {
+            auto current_conn = current_hdl.lock();
+            auto closed_conn = hdl.lock();
+            if (current_conn && closed_conn && current_conn.get() != closed_conn.get()) {
+                // 被关闭的不是当前连接（用户已重连），跳过清理
+                return;
+            }
+        }
+
         LOG_INFO("WebSocketHandler: user disconnected - user_id=" << user_id);
 
         if (_game_ctrl) {
@@ -156,12 +176,6 @@ inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
         _conn_mgr->remove(user_id);
         _online_mgr->user_offline(user_id);
         _matcher->on_disconnect(user_id);
-
-        // 清理临时映射
-        {
-            std::lock_guard<std::mutex> lock(_hdl_user_mtx);
-            _hdl_to_user_id.erase(hdl.lock().get());
-        }
     } else {
         LOG_DEBUG("WebSocketHandler: unauthenticated connection closed");
     }
@@ -239,16 +253,31 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
 }
 
 inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConnectionHdl hdl) {
+    // 清理旧连接的 handle 映射（避免旧连接 on_close 误删新连接）
+    {
+        std::lock_guard<std::mutex> lock(_hdl_user_mtx);
+        for (auto it = _hdl_to_user_id.begin(); it != _hdl_to_user_id.end(); ) {
+            if (it->second == user_id) {
+                it = _hdl_to_user_id.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     // 绑定到 ConnectionManager
     _conn_mgr->add(user_id, hdl);
 
     // 标记用户上线（默认 HALL_IDLE）
     _online_mgr->user_online(user_id);
 
-    // 保存临时映射
+    // 保存新连接的映射
     {
         std::lock_guard<std::mutex> lock(_hdl_user_mtx);
-        _hdl_to_user_id[hdl.lock().get()] = user_id;
+        auto conn = hdl.lock();
+        if (conn) {
+            _hdl_to_user_id[conn.get()] = user_id;
+        }
     }
 
     LOG_INFO("WebSocketHandler: user authenticated and connected - user_id=" << user_id);
