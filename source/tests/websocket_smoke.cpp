@@ -12,6 +12,8 @@
 #include <memory>
 #include <sstream>
 #include <signal.h>
+#include <functional>
+#include <chrono>
 
 #include "connection_manager.hpp"
 #include "matcher.hpp"
@@ -106,6 +108,23 @@ void print_connection_close(const char* tag, connection_hdl hdl) {
         std::cout << "[" << tag << "] failed to inspect close details: "
                   << e.what() << std::endl;
     }
+}
+
+void start_process_timers(gobang::WebsocketServer& server,
+                          gobang::WebSocketHandler& handler) {
+    typedef websocketpp::lib::asio::steady_timer timer;
+    auto timer_ptr = std::make_shared<timer>(server.get_io_service());
+    std::function<void(const websocketpp::lib::error_code&)> tick;
+    tick = [&handler, timer_ptr, &tick](const websocketpp::lib::error_code& ec) {
+        if (ec) {
+            return;
+        }
+        handler.process_timers();
+        timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
+        timer_ptr->async_wait(tick);
+    };
+    timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
+    timer_ptr->async_wait(tick);
 }
 
 } // namespace
@@ -279,6 +298,8 @@ int main() {
 
     std::cout << "WebSocket server started. Press Ctrl+C to stop." << std::endl;
     std::cout << "Smoke test: all components assembled successfully." << std::endl;
+
+    start_process_timers(g_server, g_ws_handler);
 
     // 运行事件循环
     g_server.run();

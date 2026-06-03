@@ -320,7 +320,7 @@ function initWebSocket() {
 
         onOpen: () => {
             updateConnectionStatus('connected');
-            wsClient.send('auth', { token: token });
+            wsClient.send('auth', { token: token, source: 'room' });
 
             // 房间页带 room_id：game.start 可能已发往已关闭的大厅连接，需主动拉取状态
             if (gameState.roomId) {

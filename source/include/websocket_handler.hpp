@@ -114,10 +114,11 @@ private:
     void send_error_to_user(int64_t user_id, int code, const std::string& message);
 
     void execute_user_disconnect(int64_t user_id);
+    bool has_pending_disconnect(int64_t user_id) const;
     bool schedule_pending_disconnect(int64_t user_id);
     bool cancel_pending_disconnect(int64_t user_id);
+    void commit_pending_game_disconnect(int64_t user_id);
     void flush_pending_disconnects();
-    void maybe_restore_game_after_reconnect(int64_t user_id, bool had_pending_cancel);
 
     // 管理器引用
     ConnectionManager* _conn_mgr = nullptr;
@@ -186,6 +187,22 @@ inline void WebSocketHandler::execute_user_disconnect(int64_t user_id) {
     }
 }
 
+inline bool WebSocketHandler::has_pending_disconnect(int64_t user_id) const {
+    std::lock_guard<std::mutex> lock(_pending_disconnect_mtx);
+    return _pending_disconnects.find(user_id) != _pending_disconnects.end();
+}
+
+inline void WebSocketHandler::commit_pending_game_disconnect(int64_t user_id) {
+    if (!has_pending_disconnect(user_id)) {
+        return;
+    }
+    cancel_pending_disconnect(user_id);
+    if (_game_ctrl) {
+        _game_ctrl->handle_disconnect(user_id);
+    }
+    LOG_INFO("WebSocketHandler: committed pending game disconnect - user_id=" << user_id);
+}
+
 inline bool WebSocketHandler::schedule_pending_disconnect(int64_t user_id) {
     std::lock_guard<std::mutex> lock(_pending_disconnect_mtx);
     PendingDisconnect entry;
@@ -232,17 +249,6 @@ inline void WebSocketHandler::flush_pending_disconnects() {
         }
         execute_user_disconnect(user_id);
     }
-}
-
-inline void WebSocketHandler::maybe_restore_game_after_reconnect(int64_t user_id,
-                                                                  bool had_pending_cancel) {
-    if (!had_pending_cancel || !_game_ctrl) {
-        return;
-    }
-    if (!_game_ctrl->has_active_room(user_id)) {
-        return;
-    }
-    _game_ctrl->handle_reconnect(user_id);
 }
 
 inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
@@ -333,13 +339,19 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             resp_data["user_id"] = (Json::Int64)user_id;
             _server->send(hdl, make_response("auth.success", resp_data), websocketpp::frame::opcode::text);
 
-            // 大厅断线后重新登录：仅当房间已标记断线时提示重连模态框
             if (_game_ctrl) {
                 GameRoom* room = _game_ctrl->get_room_by_user(user_id);
-                if (room && room->get_status() == RoomStatus::PLAYING
-                    && room->is_disconnected()
-                    && room->get_disconnected_user_id() == user_id) {
-                    send_reconnect_available(user_id, hdl);
+                if (room && room->get_status() == RoomStatus::PLAYING) {
+                    const bool hall_auth =
+                        data.isMember("source") && data["source"].asString() == "hall";
+                    if (has_pending_disconnect(user_id) && hall_auth) {
+                        commit_pending_game_disconnect(user_id);
+                        room = _game_ctrl->get_room_by_user(user_id);
+                    }
+                    if (room && room->is_disconnected()
+                        && room->get_disconnected_user_id() == user_id) {
+                        send_reconnect_available(user_id, hdl);
+                    }
                 } else if (room && room->get_status() == RoomStatus::FINISHED) {
                     // 游戏已结束，发送结果给重连用户
                     GameResult result = room->get_result();
@@ -405,8 +417,6 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
 }
 
 inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConnectionHdl hdl) {
-    const bool had_pending_cancel = cancel_pending_disconnect(user_id);
-
     {
         std::lock_guard<std::mutex> lock(_hdl_user_mtx);
         for (auto it = _hdl_to_user_id.begin(); it != _hdl_to_user_id.end(); ) {
@@ -431,8 +441,6 @@ inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConn
             _hdl_to_user_id[conn.get()] = user_id;
         }
     }
-
-    maybe_restore_game_after_reconnect(user_id, had_pending_cancel);
 
     LOG_INFO("WebSocketHandler: user authenticated and connected - user_id=" << user_id);
 }
@@ -533,6 +541,7 @@ inline void WebSocketHandler::handle_game_reconnect(int64_t user_id, const Json:
             return;
         }
     }
+    cancel_pending_disconnect(user_id);
     _game_ctrl->handle_reconnect(user_id);
 }
 

@@ -566,7 +566,7 @@
                 onOpen: () => {
                     updateConnectionStatus('connected');
                     // 发送认证
-                    wsClient.send('auth', { token: token });
+                    wsClient.send('auth', { token: token, source: 'hall' });
                 },
 
                 onClose: () => {

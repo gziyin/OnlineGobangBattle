@@ -568,6 +568,35 @@ TEST_F(WebSocketGameTest, PendingDisconnectTimeout) {
     ASSERT_FALSE(opp_disc.isNull()) << m.black_client->last_error();
 }
 
+TEST_F(WebSocketGameTest, HallReconnectAfterPending) {
+    connect_clients();
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 6001, 6002, &m);
+    m.black_client->drain_events();
+    m.white_client->drain_events();
+
+    const int64_t white_id = m.white_id;
+    m.white_client->close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    TestWebSocketClient hall_client;
+    ASSERT_TRUE(hall_client.connect(_server.uri())) << hall_client.last_error();
+
+    Json::Value auth_data;
+    auth_data["token"] = make_token(white_id);
+    auth_data["source"] = "hall";
+    ASSERT_TRUE(hall_client.send_event("auth", auth_data)) << hall_client.last_error();
+    Json::Value auth_resp = hall_client.wait_for_event("auth.success");
+    ASSERT_FALSE(auth_resp.isNull()) << hall_client.last_error();
+
+    Json::Value reconnect = hall_client.wait_for_event("reconnect.available", 3000);
+    ASSERT_FALSE(reconnect.isNull()) << hall_client.last_error();
+    EXPECT_FALSE(reconnect["data"]["room_id"].asString().empty());
+    EXPECT_TRUE(reconnect["data"].isMember("board"));
+
+    hall_client.close();
+}
+
 TEST_F(WebSocketGameTest, ConcurrentMoves) {
     connect_clients();
     MatchedClients m{};
