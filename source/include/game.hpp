@@ -70,6 +70,20 @@ public:
         return room_mgr_->get_room_by_user(user_id);
     }
 
+    // 玩家断线后检查：如果房间已结束且双方都离线，销毁房间
+    void cleanup_finished_room(int64_t user_id) {
+        GameRoom* room = room_mgr_->get_room_by_user(user_id);
+        if (!room) return;
+        if (room->get_status() != RoomStatus::FINISHED) return;
+
+        int64_t p1, p2;
+        room->get_player_ids(p1, p2);
+        // 双方都不在线时销毁房间
+        if (!online_mgr_->is_online(p1) && !online_mgr_->is_online(p2)) {
+            room_mgr_->destroy_room(room->get_room_id());
+        }
+    }
+
     void stop_all_timers() {
         cleanup_all_timers();
     }
@@ -429,7 +443,8 @@ private:
         online_mgr_->set_status(p1, OnlineStatus::HALL_IDLE);
         online_mgr_->set_status(p2, OnlineStatus::HALL_IDLE);
 
-        room_mgr_->destroy_room(room_id);
+        // 不立即销毁房间——断线超时场景下，对手可能还未重连
+        // 房间会在双方都断线后由 on_close 自然销毁
 
         LOG_INFO("游戏结束: " << room_id << ", 结果: " << result_str);
     }
