@@ -114,9 +114,9 @@ private:
     mutable std::mutex _hdl_user_mtx;
     std::unordered_map<void*, int64_t> _hdl_to_user_id;
 
-    // 用户最后连接时间（用于页面跳转竞态检测）
+    // 用户最后认证的连接句柄（用于页面跳转竞态检测）
     mutable std::mutex _connect_time_mtx;
-    std::unordered_map<int64_t, std::chrono::steady_clock::time_point> _last_connect_time;
+    std::unordered_map<int64_t, WebsocketConnectionHdl> _last_auth_hdl;
 
     // WebsocketServer 引用（用于获取连接指针）
     WebsocketServer* _server = nullptr;
@@ -175,14 +175,15 @@ inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
             }
         }
 
-        // 页面跳转竞态检测：如果用户刚连接不久（3秒内），跳过断线处理
-        // 场景：从大厅跳转到房间，大厅连接断开但房间连接已建立
+        // 页面跳转竞态检测：如果当前断开的连接不是最后认证的连接，跳过断线处理
+        // 场景：从大厅跳转到房间，大厅旧连接断开但房间新连接已建立
         {
             std::lock_guard<std::mutex> lock(_connect_time_mtx);
-            auto it = _last_connect_time.find(user_id);
-            if (it != _last_connect_time.end()) {
-                auto elapsed = std::chrono::steady_clock::now() - it->second;
-                if (elapsed < std::chrono::seconds(3)) {
+            auto it = _last_auth_hdl.find(user_id);
+            if (it != _last_auth_hdl.end()) {
+                auto last_conn = it->second.lock();
+                auto closed_conn = hdl.lock();
+                if (last_conn && closed_conn && last_conn.get() != closed_conn.get()) {
                     LOG_INFO("WebSocketHandler: skip disconnect (page transition) - user_id=" << user_id);
                     return;
                 }
@@ -350,10 +351,10 @@ inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConn
     // 标记用户上线（默认 HALL_IDLE）
     _online_mgr->user_online(user_id);
 
-    // 记录连接时间（用于页面跳转竞态检测）
+    // 记录最后认证的连接句柄（用于页面跳转竞态检测）
     {
         std::lock_guard<std::mutex> lock(_connect_time_mtx);
-        _last_connect_time[user_id] = std::chrono::steady_clock::now();
+        _last_auth_hdl[user_id] = hdl;
     }
 
     // 保存新连接的映射
