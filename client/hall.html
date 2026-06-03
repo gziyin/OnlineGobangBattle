@@ -500,6 +500,33 @@
                 hideReconnectModal();
                 // 跳转到房间页
                 window.location.href = `room.html?room_id=${data.room_id}&color=${data.color}`;
+            },
+
+            'game.over': (data) => {
+                // 游戏结束（拒绝重连/断线超时），更新分数
+                hideReconnectModal();
+
+                // 更新 sessionStorage 中的分数
+                const delta = data.score_change || 0;
+                if (delta !== 0) {
+                    const userInfo = JSON.parse(sessionStorage.getItem('gobang_user') || '{}');
+                    if (userInfo.score != null) {
+                        userInfo.score = Math.max(0, userInfo.score + delta);
+                        sessionStorage.setItem('gobang_user', JSON.stringify(userInfo));
+                        // 更新显示
+                        score = userInfo.score;
+                        elements.score.textContent = `分数: ${score}`;
+                    }
+                }
+
+                // 显示结果通知
+                let resultText = '游戏结束';
+                if (data.reason === 'giveup') {
+                    resultText = delta > 0 ? '对手放弃认输，你获胜了！' : '你已放弃认输';
+                } else if (data.reason === 'timeout') {
+                    resultText = delta > 0 ? '对手重连超时，你获胜了！' : '重连超时，判负';
+                }
+                showNotification(`${resultText} (${delta >= 0 ? '+' : ''}${delta}分)`, delta > 0 ? 'success' : 'error');
             }
         };
 
