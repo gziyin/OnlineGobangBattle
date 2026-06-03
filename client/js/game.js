@@ -279,6 +279,13 @@ const eventHandlers = {
             setTimeout(() => {
                 window.location.href = 'login.html';
             }, 2000);
+        } else if (data.code === 4004) {
+            // 房间不存在（已销毁），跳转大厅
+            shouldReconnect = false;
+            gameState.gameActive = false;
+            setTimeout(() => {
+                window.location.href = 'hall.html';
+            }, 2000);
         }
     }
 };
@@ -315,7 +322,8 @@ function initWebSocket() {
             updateConnectionStatus('connected');
             wsClient.send('auth', { token: token });
 
-            if (gameState.roomId) {
+            // 只在游戏进行中且有房间 ID 时尝试重连
+            if (gameState.roomId && gameState.gameActive) {
                 wsClient.send('game.reconnect', {
                     token: token,
                     room_id: gameState.roomId
