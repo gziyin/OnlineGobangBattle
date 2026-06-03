@@ -212,6 +212,7 @@ public:
 
         ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, server_.get(),
                          game_ctrl_.get());
+        ws_handler_.set_disconnect_grace_seconds(1);
 
         server_->clear_access_channels(websocketpp::log::alevel::all);
         server_->clear_error_channels(websocketpp::log::elevel::all);
@@ -519,6 +520,52 @@ TEST_F(WebSocketGameTest, GameTimeout) {
     ASSERT_FALSE(over1.isNull()) << m.black_client->last_error();
     ASSERT_FALSE(over2.isNull()) << m.white_client->last_error();
     EXPECT_EQ(over1["data"]["reason"].asString(), "timeout");
+}
+
+TEST_F(WebSocketGameTest, PageNavigationGraceCancel) {
+    connect_clients();
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5801, 5802, &m);
+    m.black_client->drain_events();
+    m.white_client->drain_events();
+
+    const int64_t white_id = m.white_id;
+    TestWebSocketClient* old_white = m.white_client;
+    old_white->close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    TestWebSocketClient new_white;
+    ASSERT_TRUE(new_white.connect(_server.uri())) << new_white.last_error();
+    auth_client(new_white, white_id);
+
+    Json::Value reconnect_data;
+    reconnect_data["token"] = make_token(white_id);
+    ASSERT_TRUE(new_white.send_event("game.reconnect", reconnect_data));
+    Json::Value re = new_white.wait_for_event("game.reconnect", 3000);
+    ASSERT_FALSE(re.isNull()) << new_white.last_error();
+
+    _server.ws_handler().process_timers();
+
+    Json::Value opp_disc = m.black_client->wait_for_event("opponent.disconnected", 500);
+    EXPECT_TRUE(opp_disc.isNull())
+        << "page navigation should not trigger opponent.disconnected within grace";
+
+    new_white.close();
+}
+
+TEST_F(WebSocketGameTest, PendingDisconnectTimeout) {
+    connect_clients();
+    MatchedClients m{};
+    match_two_players(_client1, _client2, 5901, 5902, &m);
+    m.black_client->drain_events();
+    m.white_client->drain_events();
+
+    m.white_client->close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    _server.ws_handler().process_timers();
+
+    Json::Value opp_disc = m.black_client->wait_for_event("opponent.disconnected", 3000);
+    ASSERT_FALSE(opp_disc.isNull()) << m.black_client->last_error();
 }
 
 TEST_F(WebSocketGameTest, ConcurrentMoves) {

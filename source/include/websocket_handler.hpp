@@ -1,5 +1,9 @@
 #pragma once
+#include <chrono>
+#include <mutex>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <json/json.h>
 
 #include "connection_manager.hpp"
@@ -80,6 +84,11 @@ public:
      */
     void process_timers();
 
+    /** @brief 设置页面跳转 grace 延迟（秒），主要用于测试 */
+    void set_disconnect_grace_seconds(int seconds) {
+        _disconnect_grace_seconds = seconds > 0 ? seconds : 1;
+    }
+
 private:
     // 事件处理函数
     std::string handle_match_start(int64_t user_id, const Json::Value& data);
@@ -104,6 +113,12 @@ private:
 
     void send_error_to_user(int64_t user_id, int code, const std::string& message);
 
+    void execute_user_disconnect(int64_t user_id);
+    bool schedule_pending_disconnect(int64_t user_id);
+    bool cancel_pending_disconnect(int64_t user_id);
+    void flush_pending_disconnects();
+    void maybe_restore_game_after_reconnect(int64_t user_id, bool had_pending_cancel);
+
     // 管理器引用
     ConnectionManager* _conn_mgr = nullptr;
     OnlineManager* _online_mgr = nullptr;
@@ -114,13 +129,13 @@ private:
     mutable std::mutex _hdl_user_mtx;
     std::unordered_map<void*, int64_t> _hdl_to_user_id;
 
-    // 用户最后认证的连接句柄和时间（用于页面跳转竞态检测）
-    mutable std::mutex _connect_time_mtx;
-    struct ConnectInfo {
-        WebsocketConnectionHdl hdl;
-        std::chrono::steady_clock::time_point time;
+    // 进行中游戏断线 grace：页面跳转时旧连接先关闭，新连接稍后 auth，可取消延迟断线
+    mutable std::mutex _pending_disconnect_mtx;
+    struct PendingDisconnect {
+        std::chrono::steady_clock::time_point deadline;
     };
-    std::unordered_map<int64_t, ConnectInfo> _last_connect_info;
+    std::unordered_map<int64_t, PendingDisconnect> _pending_disconnects;
+    int _disconnect_grace_seconds = 3;
 
     // WebsocketServer 引用（用于获取连接指针）
     WebsocketServer* _server = nullptr;
@@ -155,6 +170,81 @@ inline void WebSocketHandler::on_open(WebsocketConnectionHdl hdl) {
     // 连接建立时暂不做任何操作，等待认证事件
 }
 
+inline void WebSocketHandler::execute_user_disconnect(int64_t user_id) {
+    LOG_INFO("WebSocketHandler: user disconnected - user_id=" << user_id);
+
+    if (_game_ctrl) {
+        _game_ctrl->handle_disconnect(user_id);
+    }
+
+    _conn_mgr->remove(user_id);
+    _online_mgr->user_offline(user_id);
+    _matcher->on_disconnect(user_id);
+
+    if (_game_ctrl) {
+        _game_ctrl->cleanup_finished_room(user_id);
+    }
+}
+
+inline bool WebSocketHandler::schedule_pending_disconnect(int64_t user_id) {
+    std::lock_guard<std::mutex> lock(_pending_disconnect_mtx);
+    PendingDisconnect entry;
+    entry.deadline = std::chrono::steady_clock::now()
+        + std::chrono::seconds(_disconnect_grace_seconds);
+    _pending_disconnects[user_id] = entry;
+    LOG_INFO("WebSocketHandler: scheduled pending disconnect - user_id=" << user_id
+             << ", grace=" << _disconnect_grace_seconds << "s");
+    return true;
+}
+
+inline bool WebSocketHandler::cancel_pending_disconnect(int64_t user_id) {
+    std::lock_guard<std::mutex> lock(_pending_disconnect_mtx);
+    auto it = _pending_disconnects.find(user_id);
+    if (it == _pending_disconnects.end()) {
+        return false;
+    }
+    _pending_disconnects.erase(it);
+    LOG_INFO("WebSocketHandler: cancelled pending disconnect - user_id=" << user_id);
+    return true;
+}
+
+inline void WebSocketHandler::flush_pending_disconnects() {
+    std::vector<int64_t> expired;
+    const auto now = std::chrono::steady_clock::now();
+
+    {
+        std::lock_guard<std::mutex> lock(_pending_disconnect_mtx);
+        for (const auto& pair : _pending_disconnects) {
+            if (pair.second.deadline <= now) {
+                expired.push_back(pair.first);
+            }
+        }
+        for (int64_t user_id : expired) {
+            _pending_disconnects.erase(user_id);
+        }
+    }
+
+    for (int64_t user_id : expired) {
+        if (_conn_mgr->is_connected(user_id)) {
+            LOG_INFO("WebSocketHandler: skip expired pending disconnect (reconnected) - user_id="
+                     << user_id);
+            continue;
+        }
+        execute_user_disconnect(user_id);
+    }
+}
+
+inline void WebSocketHandler::maybe_restore_game_after_reconnect(int64_t user_id,
+                                                                  bool had_pending_cancel) {
+    if (!had_pending_cancel || !_game_ctrl) {
+        return;
+    }
+    if (!_game_ctrl->has_active_room(user_id)) {
+        return;
+    }
+    _game_ctrl->handle_reconnect(user_id);
+}
+
 inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
     int64_t user_id = 0;
     {
@@ -168,55 +258,26 @@ inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
     }
 
     if (user_id > 0) {
-        // 检查被关闭的连接是否仍是当前活跃连接，避免旧连接 on_close 误删新连接
         WebsocketConnectionHdl current_hdl;
         if (_conn_mgr->get(user_id, current_hdl)) {
             auto current_conn = current_hdl.lock();
             auto closed_conn = hdl.lock();
             if (current_conn && closed_conn && current_conn.get() != closed_conn.get()) {
-                // 被关闭的不是当前连接（用户已重连），跳过清理
                 return;
             }
         }
 
-        // 页面跳转竞态检测：
-        // 1. 如果断开的连接不是最后认证的连接 → 跳过（新连接已建立）
-        // 2. 如果最后认证时间在 2 秒内 → 跳过（新连接可能正在建立）
-        {
-            std::lock_guard<std::mutex> lock(_connect_time_mtx);
-            auto it = _last_connect_info.find(user_id);
-            if (it != _last_connect_info.end()) {
-                // 检查 1：连接句柄不同
-                auto last_conn = it->second.hdl.lock();
-                auto closed_conn = hdl.lock();
-                if (last_conn && closed_conn && last_conn.get() != closed_conn.get()) {
-                    LOG_INFO("WebSocketHandler: skip disconnect (different handle) - user_id=" << user_id);
-                    return;
-                }
-                // 检查 2：最近 2 秒内有新连接（可能是页面跳转，新连接正在建立）
-                auto elapsed = std::chrono::steady_clock::now() - it->second.time;
-                if (elapsed < std::chrono::seconds(2)) {
-                    LOG_INFO("WebSocketHandler: skip disconnect (recent connection) - user_id=" << user_id);
-                    return;
-                }
-            }
-        }
-
-        LOG_INFO("WebSocketHandler: user disconnected - user_id=" << user_id);
-
-        if (_game_ctrl) {
-            _game_ctrl->handle_disconnect(user_id);
-        }
-
-        // 执行统一断线流程
         _conn_mgr->remove(user_id);
-        _online_mgr->user_offline(user_id);
-        _matcher->on_disconnect(user_id);
 
-        // 如果房间已结束且双方都离线，销毁房间
-        if (_game_ctrl) {
-            _game_ctrl->cleanup_finished_room(user_id);
+        const bool in_active_game =
+            _game_ctrl && _game_ctrl->has_active_room(user_id);
+
+        if (in_active_game) {
+            schedule_pending_disconnect(user_id);
+            return;
         }
+
+        execute_user_disconnect(user_id);
     } else {
         LOG_DEBUG("WebSocketHandler: unauthenticated connection closed");
     }
@@ -255,14 +316,11 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             return;
         }
 
-        // 已在线用户：拒绝重复登录（4009）
+        // 已在线：同用户替换连接（页面跳转 grace 期间新连接接入）
         if (_online_mgr->is_online(user_id)) {
-            LOG_WARN("WebSocketHandler: user already online, rejecting - user_id=" << user_id);
-            _server->send(hdl, make_error(4009, "account already online"), websocketpp::frame::opcode::text);
-            return;
+            LOG_INFO("WebSocketHandler: replacing connection for online user - user_id=" << user_id);
         }
 
-        // 绑定 user_id 与连接
         set_user_connection(user_id, hdl);
 
         // 如果是 match.start，继续处理匹配逻辑
@@ -275,10 +333,12 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             resp_data["user_id"] = (Json::Int64)user_id;
             _server->send(hdl, make_response("auth.success", resp_data), websocketpp::frame::opcode::text);
 
-            // 检查是否有未处理的游戏房间（断线后重新登录场景）
+            // 大厅断线后重新登录：仅当房间已标记断线时提示重连模态框
             if (_game_ctrl) {
                 GameRoom* room = _game_ctrl->get_room_by_user(user_id);
-                if (room && room->get_status() == RoomStatus::PLAYING) {
+                if (room && room->get_status() == RoomStatus::PLAYING
+                    && room->is_disconnected()
+                    && room->get_disconnected_user_id() == user_id) {
                     send_reconnect_available(user_id, hdl);
                 } else if (room && room->get_status() == RoomStatus::FINISHED) {
                     // 游戏已结束，发送结果给重连用户
@@ -345,7 +405,8 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
 }
 
 inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConnectionHdl hdl) {
-    // 清理旧连接的 handle 映射（避免旧连接 on_close 误删新连接）
+    const bool had_pending_cancel = cancel_pending_disconnect(user_id);
+
     {
         std::lock_guard<std::mutex> lock(_hdl_user_mtx);
         for (auto it = _hdl_to_user_id.begin(); it != _hdl_to_user_id.end(); ) {
@@ -357,19 +418,12 @@ inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConn
         }
     }
 
-    // 绑定到 ConnectionManager
     _conn_mgr->add(user_id, hdl);
 
-    // 标记用户上线（默认 HALL_IDLE）
-    _online_mgr->user_online(user_id);
-
-    // 记录最后认证的连接句柄和时间（用于页面跳转竞态检测）
-    {
-        std::lock_guard<std::mutex> lock(_connect_time_mtx);
-        _last_connect_info[user_id] = {hdl, std::chrono::steady_clock::now()};
+    if (!_online_mgr->is_online(user_id)) {
+        _online_mgr->user_online(user_id);
     }
 
-    // 保存新连接的映射
     {
         std::lock_guard<std::mutex> lock(_hdl_user_mtx);
         auto conn = hdl.lock();
@@ -377,6 +431,8 @@ inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConn
             _hdl_to_user_id[conn.get()] = user_id;
         }
     }
+
+    maybe_restore_game_after_reconnect(user_id, had_pending_cancel);
 
     LOG_INFO("WebSocketHandler: user authenticated and connected - user_id=" << user_id);
 }
@@ -481,6 +537,7 @@ inline void WebSocketHandler::handle_game_reconnect(int64_t user_id, const Json:
 }
 
 inline void WebSocketHandler::process_timers() {
+    flush_pending_disconnects();
     if (_game_ctrl) {
         _game_ctrl->process_pending_timeouts();
     }

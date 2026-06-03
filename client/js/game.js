@@ -322,8 +322,8 @@ function initWebSocket() {
             updateConnectionStatus('connected');
             wsClient.send('auth', { token: token });
 
-            // 只在游戏进行中且有房间 ID 时尝试重连
-            if (gameState.roomId && gameState.gameActive) {
+            // 房间页带 room_id：game.start 可能已发往已关闭的大厅连接，需主动拉取状态
+            if (gameState.roomId) {
                 wsClient.send('game.reconnect', {
                     token: token,
                     room_id: gameState.roomId
