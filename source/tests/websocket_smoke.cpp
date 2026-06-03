@@ -218,6 +218,7 @@ int main() {
             } else {
                 resp_json = gobang::auth::handle_login(
                     g_user_table,
+                    g_online_mgr,
                     req_json["username"].asString(),
                     req_json["password"].asString());
             }

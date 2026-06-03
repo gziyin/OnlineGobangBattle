@@ -5,6 +5,7 @@
 #include "db.hpp"
 #include "user_table.hpp"
 #include "security.hpp"
+#include "online.hpp"
 #include "logger.hpp"
 
 namespace gobang {
@@ -84,6 +85,7 @@ inline Json::Value handle_register(UserTable& user_table,
 /**
  * @brief 用户登录请求处理
  * @param user_table 用户表操作对象
+ * @param online_mgr 在线状态管理器（用于检查重复登录）
  * @param username 用户名
  * @param password 原始密码
  * @return JSON 响应 {success: bool, message: string, token: string, user: {...}}
@@ -92,10 +94,12 @@ inline Json::Value handle_register(UserTable& user_table,
  * 1. 参数校验
  * 2. 查询用户（使用 select_for_auth，包含 password_hash）
  * 3. PBKDF2 验证密码
- * 4. 生成 JWT Token
- * 5. 返回 token 和用户信息（不包含 password_hash）
+ * 4. 检查用户是否已在线（防止重复登录）
+ * 5. 生成 JWT Token
+ * 6. 返回 token 和用户信息（不包含 password_hash）
  */
 inline Json::Value handle_login(UserTable& user_table,
+                                OnlineManager& online_mgr,
                                 const std::string& username,
                                 const std::string& password) {
     Json::Value response;
@@ -124,8 +128,16 @@ inline Json::Value handle_login(UserTable& user_table,
         return response;
     }
 
-    // 4. 生成 JWT Token
+    // 4. 检查用户是否已在线（防止重复登录）
     int64_t user_id = user["id"].asInt64();
+    if (online_mgr.is_online(user_id)) {
+        response["success"] = false;
+        response["message"] = "该账号已在线，请勿重复登录";
+        LOG_WARN("Auth: 用户已在线，拒绝重复登录，username=" << username << ", user_id=" << user_id);
+        return response;
+    }
+
+    // 5. 生成 JWT Token
     std::string token = security::jwt_generate(user_id);
     if (token.empty()) {
         response["success"] = false;
@@ -133,7 +145,7 @@ inline Json::Value handle_login(UserTable& user_table,
         return response;
     }
 
-    // 5. 返回结果（移除 password_hash）
+    // 6. 返回结果（移除 password_hash）
     response["success"] = true;
     response["message"] = "登录成功";
     response["token"] = token;

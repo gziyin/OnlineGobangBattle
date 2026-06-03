@@ -91,10 +91,8 @@ private:
     void handle_reconnect_accept(int64_t user_id);
     void handle_reconnect_reject(int64_t user_id);
 
-    // 发送重连通知给大厅页面
+    // 发送重连通知给大厅页面（断线后重新登录场景）
     void send_reconnect_available(int64_t user_id, WebsocketConnectionHdl hdl);
-    // 发送已结束的游戏结果给重连用户
-    void send_game_over_to_reconnector(int64_t user_id, GameRoom* room, WebsocketConnectionHdl hdl);
 
     // 工具函数
     std::string make_response(const std::string& event, const Json::Value& data);
@@ -217,33 +215,10 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
             return;
         }
 
-        // 已在线用户重新连接：替换旧连接
+        // 已在线用户：拒绝重复登录（4009）
         if (_online_mgr->is_online(user_id)) {
-            LOG_INFO("WebSocketHandler: user already online, replacing connection - user_id=" << user_id);
-            // 绑定新连接（替换旧连接）
-            set_user_connection(user_id, hdl);
-            // 检查是否有游戏房间
-            if (_game_ctrl) {
-                GameRoom* room = _game_ctrl->get_room_by_user(user_id);
-                if (room && room->get_status() == RoomStatus::PLAYING) {
-                    // 游戏进行中，发送重连通知
-                    send_reconnect_available(user_id, hdl);
-                    return;
-                } else if (room && room->get_status() == RoomStatus::FINISHED) {
-                    // 游戏已结束（断线超时），直接发送结果
-                    send_game_over_to_reconnector(user_id, room, hdl);
-                    return;
-                }
-            }
-            // 如果是 match.start，继续处理匹配逻辑
-            if (event == "match.start") {
-                std::string resp = handle_match_start(user_id, data);
-                _server->send(hdl, resp, websocketpp::frame::opcode::text);
-            } else {
-                Json::Value resp_data;
-                resp_data["user_id"] = (Json::Int64)user_id;
-                _server->send(hdl, make_response("auth.success", resp_data), websocketpp::frame::opcode::text);
-            }
+            LOG_WARN("WebSocketHandler: user already online, rejecting - user_id=" << user_id);
+            _server->send(hdl, make_error(4009, "account already online"), websocketpp::frame::opcode::text);
             return;
         }
 
@@ -266,7 +241,26 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
                 if (room && room->get_status() == RoomStatus::PLAYING) {
                     send_reconnect_available(user_id, hdl);
                 } else if (room && room->get_status() == RoomStatus::FINISHED) {
-                    send_game_over_to_reconnector(user_id, room, hdl);
+                    // 游戏已结束，发送结果给重连用户
+                    GameResult result = room->get_result();
+                    std::string result_str;
+                    if (result == GameResult::BLACK_WIN) {
+                        result_str = "black_win";
+                    } else if (result == GameResult::WHITE_WIN) {
+                        result_str = "white_win";
+                    } else if (result == GameResult::TIMEOUT) {
+                        result_str = "timeout";
+                    } else if (result == GameResult::GIVEUP) {
+                        result_str = "giveup";
+                    } else {
+                        result_str = "draw";
+                    }
+
+                    Json::Value game_over_msg;
+                    game_over_msg["event"] = "game.over";
+                    game_over_msg["data"]["result"] = result_str;
+                    game_over_msg["data"]["reason"] = "timeout";
+                    _server->send(hdl, game_over_msg.toStyledString(), websocketpp::frame::opcode::text);
                 }
             }
         }
@@ -571,59 +565,6 @@ inline void WebSocketHandler::send_reconnect_available(int64_t user_id, Websocke
 
     LOG_INFO("WebSocketHandler: sent reconnect.available to user_id=" << user_id
              << ", room=" << room->get_room_id() << ", remaining=" << remaining << "s");
-}
-
-inline void WebSocketHandler::send_game_over_to_reconnector(int64_t user_id, GameRoom* room,
-                                                             WebsocketConnectionHdl hdl) {
-    if (!room) return;
-
-    // 构造 game.over 消息
-    GameResult result = room->get_result();
-    std::string result_str;
-    std::string reason;
-    int64_t winner_id = 0;
-    int64_t loser_id = 0;
-
-    if (result == GameResult::BLACK_WIN || result == GameResult::WHITE_WIN) {
-        int64_t p1, p2;
-        room->get_player_ids(p1, p2);
-        PieceColor winner_color = (result == GameResult::BLACK_WIN) ? PieceColor::BLACK : PieceColor::WHITE;
-        PieceColor p1_color;
-        room->get_player_color(p1, p1_color);
-        winner_id = (p1_color == winner_color) ? p1 : p2;
-        loser_id = (winner_id == p1) ? p2 : p1;
-        result_str = (result == GameResult::BLACK_WIN) ? "black_win" : "white_win";
-        reason = "timeout";
-    } else if (result == GameResult::TIMEOUT) {
-        // 断线超时：断线方为负
-        int64_t p1, p2;
-        room->get_player_ids(p1, p2);
-        int64_t disconnected_uid = room->get_disconnected_user_id();
-        if (disconnected_uid > 0) {
-            loser_id = disconnected_uid;
-            winner_id = (disconnected_uid == p1) ? p2 : p1;
-        }
-        PieceColor winner_color;
-        room->get_player_color(winner_id, winner_color);
-        result_str = (winner_color == PieceColor::BLACK) ? "black_win" : "white_win";
-        reason = "timeout";
-    }
-
-    Json::Value msg;
-    msg["event"] = "game.over";
-    msg["data"]["result"] = result_str;
-    msg["data"]["reason"] = reason;
-    if (winner_id != 0) {
-        Json::Value winner;
-        winner["user_id"] = winner_id;
-        msg["data"]["winner"] = winner;
-    }
-    int64_t score_change = (user_id == winner_id) ? 25 : (user_id == loser_id) ? -15 : 0;
-    msg["data"]["score_change"] = score_change;
-
-    _server->send(hdl, msg.toStyledString(), websocketpp::frame::opcode::text);
-    LOG_INFO("WebSocketHandler: sent game.over to reconnector user_id=" << user_id
-             << ", room=" << room->get_room_id());
 }
 
 } // namespace gobang

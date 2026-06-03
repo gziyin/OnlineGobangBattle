@@ -245,6 +245,8 @@ const eventHandlers = {
         if (elements.btnGiveup) {
             elements.btnGiveup.disabled = true;
         }
+        // 隐藏断线覆盖层（如果有）
+        hideDisconnectOverlay();
         showGameOverModal(data);
     },
 
@@ -435,6 +437,9 @@ function showDisconnectOverlay(timeoutSeconds) {
         if (remaining <= 0) {
             clearInterval(disconnectOverlayTimer);
             disconnectOverlayTimer = null;
+            // 倒计时结束，隐藏覆盖层，等待服务器发送 game.over
+            hideDisconnectOverlay();
+            showNotification('对手重连超时，等待游戏结算...');
         }
     }, 1000);
 }
