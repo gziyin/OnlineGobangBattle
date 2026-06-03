@@ -113,18 +113,27 @@ void print_connection_close(const char* tag, connection_hdl hdl) {
 void start_process_timers(gobang::WebsocketServer& server,
                           gobang::WebSocketHandler& handler) {
     typedef websocketpp::lib::asio::steady_timer timer;
-    auto timer_ptr = std::make_shared<timer>(server.get_io_service());
-    std::function<void(const websocketpp::lib::error_code&)> tick;
-    tick = [&handler, timer_ptr, &tick](const websocketpp::lib::error_code& ec) {
-        if (ec) {
-            return;
+    struct TimerDriver : std::enable_shared_from_this<TimerDriver> {
+        gobang::WebSocketHandler* handler = nullptr;
+        std::shared_ptr<timer> timer_ptr;
+
+        void schedule() {
+            std::shared_ptr<TimerDriver> self = shared_from_this();
+            timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
+            timer_ptr->async_wait([self](const websocketpp::lib::error_code& ec) {
+                if (ec) {
+                    return;
+                }
+                self->handler->process_timers();
+                self->schedule();
+            });
         }
-        handler.process_timers();
-        timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
-        timer_ptr->async_wait(tick);
     };
-    timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
-    timer_ptr->async_wait(tick);
+
+    std::shared_ptr<TimerDriver> driver = std::make_shared<TimerDriver>();
+    driver->handler = &handler;
+    driver->timer_ptr = std::make_shared<timer>(server.get_io_service());
+    driver->schedule();
 }
 
 } // namespace
