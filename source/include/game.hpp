@@ -373,6 +373,9 @@ private:
         GameRoom* room = room_mgr_->get_room(room_id);
         if (!room) return;
 
+        // 标记房间为 FINISHED
+        room->set_game_over(result);
+
         if (winner_id != 0 && loser_id != 0 && user_table_) {
             user_table_->update_score_match(winner_id, loser_id);
         }

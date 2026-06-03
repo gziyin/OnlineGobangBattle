@@ -272,6 +272,14 @@ public:
         return result_;
     }
 
+    // 设置游戏结果并标记房间为结束（用于断线超时、拒绝重连等场景）
+    void set_game_over(GameResult result) {
+        std::lock_guard<std::mutex> lock(mtx_);
+        status_ = RoomStatus::FINISHED;
+        result_ = result;
+        LOG_INFO("房间 " << room_id_ << " 游戏结束，结果: " << static_cast<int>(result));
+    }
+
 private:
     bool check_win(int row, int col, PieceColor color) const {
         static const int dirs[4][2] = {
