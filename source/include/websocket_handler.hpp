@@ -114,6 +114,10 @@ private:
     mutable std::mutex _hdl_user_mtx;
     std::unordered_map<void*, int64_t> _hdl_to_user_id;
 
+    // 用户最后连接时间（用于页面跳转竞态检测）
+    mutable std::mutex _connect_time_mtx;
+    std::unordered_map<int64_t, std::chrono::steady_clock::time_point> _last_connect_time;
+
     // WebsocketServer 引用（用于获取连接指针）
     WebsocketServer* _server = nullptr;
 };
@@ -168,6 +172,20 @@ inline void WebSocketHandler::on_close(WebsocketConnectionHdl hdl) {
             if (current_conn && closed_conn && current_conn.get() != closed_conn.get()) {
                 // 被关闭的不是当前连接（用户已重连），跳过清理
                 return;
+            }
+        }
+
+        // 页面跳转竞态检测：如果用户刚连接不久（3秒内），跳过断线处理
+        // 场景：从大厅跳转到房间，大厅连接断开但房间连接已建立
+        {
+            std::lock_guard<std::mutex> lock(_connect_time_mtx);
+            auto it = _last_connect_time.find(user_id);
+            if (it != _last_connect_time.end()) {
+                auto elapsed = std::chrono::steady_clock::now() - it->second;
+                if (elapsed < std::chrono::seconds(3)) {
+                    LOG_INFO("WebSocketHandler: skip disconnect (page transition) - user_id=" << user_id);
+                    return;
+                }
             }
         }
 
@@ -331,6 +349,12 @@ inline void WebSocketHandler::set_user_connection(int64_t user_id, WebsocketConn
 
     // 标记用户上线（默认 HALL_IDLE）
     _online_mgr->user_online(user_id);
+
+    // 记录连接时间（用于页面跳转竞态检测）
+    {
+        std::lock_guard<std::mutex> lock(_connect_time_mtx);
+        _last_connect_time[user_id] = std::chrono::steady_clock::now();
+    }
 
     // 保存新连接的映射
     {
