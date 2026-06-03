@@ -207,7 +207,16 @@ inline void WebSocketHandler::on_message(WebsocketConnectionHdl hdl, const std::
 
     // 特殊处理：认证事件（不需要预先绑定 user_id）
     if (event == "auth" || event == "match.start") {
-        // match.start 事件携带 token，用于认证
+        // 先检查当前连接是否已认证（已认证的 match.start 直接处理）
+        int64_t existing_user_id = get_user_id_from_hdl(hdl);
+        if (existing_user_id > 0 && event == "match.start") {
+            // 连接已认证，直接处理匹配逻辑
+            std::string resp = handle_match_start(existing_user_id, data);
+            _server->send(hdl, resp, websocketpp::frame::opcode::text);
+            return;
+        }
+
+        // 未认证的连接，走认证流程
         int64_t user_id = verify_token_from_data(data);
         if (user_id == 0) {
             LOG_WARN("WebSocketHandler: invalid or missing token");
