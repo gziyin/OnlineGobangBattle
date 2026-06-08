@@ -9,7 +9,7 @@
 | 用户注册 / 登录 | 已实现 | HTTP JSON API，JWT 鉴权，PBKDF2 密码存储 |
 | 天梯匹配 | 已实现 | 三段位分桶，支持超时跨段放宽 |
 | 在线状态 | 已实现 | 大厅空闲 / 匹配中 / 对局中 四态管理 |
-| 五子棋对战 | 开发中 (M4) | 房间、落子、胜负、超时判负；WebSocket 与前端房间页联调进行中 |
+| 五子棋对战 | 开发中 (M4) | Phase 1–3 已完成（room/game/WS 集成 + room.html）；Phase 4 联调验收中 |
 | 实时聊天 | 规划中 (M5) | 敏感词过滤等 |
 | 生产级统一服务入口 | 待补齐 | 当前通过测试二进制与 `websocket_smoke` 验证 |
 
@@ -31,8 +31,8 @@ OnlineGobangBattle/
 ├── client/               # 静态前端（大厅等）
 ├── scripts/              # 数据库初始化
 ├── documents/            # 构建与工程文档
+│   └── plan_and_review/  # 里程碑计划与复盘
 ├── ops/                  # 部署与回滚脚本
-└── plan_and_review/      # 里程碑计划与复盘
 ```
 
 ### 核心模块（`source/include/`）
@@ -111,14 +111,14 @@ cd source/build
 | `http://host:8080` | HTTP | 健康提示 |
 | `ws://host:8080/ws` | WebSocket | 大厅 / 匹配 / 对战事件 |
 
-前端：在浏览器打开 `client/hall.html`（需根据实际部署调整 WebSocket 地址）。
+前端：在浏览器打开 `client/login.html` → `hall.html` → 匹配成功后进入 `client/room.html`（需根据实际部署调整 WebSocket 地址）。
 
 ## WebSocket 事件（摘要）
 
 上行：`match.start`、`match.cancel`、`game.move`、`game.chat`、`game.giveup`、`ping`  
 下行：`match.waiting`、`match.success`、`game.start`、`game.move`、`game.chat`、`game.over`、`game.reconnect`、`error`、`pong`
 
-完整契约见 [plan_and_review/milestone_plan/M4 接口冻结草案（基于 M3）.md](plan_and_review/milestone_plan/M4%20接口冻结草案（基于%20M3）.md)。
+完整契约见 [documents/plan_and_review/milestone_plan/M4 接口冻结草案（基于 M3）.md](documents/plan_and_review/milestone_plan/M4%20接口冻结草案（基于%20M3）.md)。
 
 ## 里程碑进度
 
@@ -127,11 +127,11 @@ cd source/build
 | M1 环境搭建与基础框架 | 已完成 |
 | M2 数据库与用户模块 | 已完成 |
 | M3 在线管理与匹配 | 已完成 |
-| M4 游戏房间与对战逻辑 | 进行中 |
+| M4 游戏房间与对战逻辑 | 进行中（Phase 1–3 完成，Phase 4 联调验收中） |
 | M5 聊天与优化 | 未开始 |
 | M6 部署与文档 | 部分完成 |
 
-详细计划与复盘见 [plan_and_review/](plan_and_review/)。
+详细计划与复盘见 [documents/plan_and_review/](documents/plan_and_review/)。
 
 ## 文档索引
 
@@ -139,7 +139,8 @@ cd source/build
 |------|------|
 | [documents/build-and-run-guide.md](documents/build-and-run-guide.md) | 依赖、构建、测试、常见问题 |
 | [documents/engineering_hygiene.md](documents/engineering_hygiene.md) | 工程规范 |
-| [plan_and_review/project_plan/current/project_plan_v2.2.md](plan_and_review/project_plan/current/project_plan_v2.2.md) | 项目总规划 |
+| [documents/plan_and_review/project_plan/current/project_plan_v2.2.md](documents/plan_and_review/project_plan/current/project_plan_v2.2.md) | 项目总规划 |
+| [documents/plan_and_review/phase_plan/M4_Phase4_verification_report.md](documents/plan_and_review/phase_plan/M4_Phase4_verification_report.md) | M4 Phase 4 验收记录 |
 
 ## 部署
 
@@ -149,7 +150,7 @@ cd source/build
 
 - 服务端实现以 `source/include/*.hpp` 为主，测试驱动分里程碑交付。
 - AI 协作流程使用 [Trellis](.trellis/workflow.md)（`.trellis/` 目录）。
-- 修改架构或测试入口时，请同步更新 `plan_and_review/` 中对应文档（见 [plan_and_review/README.md](plan_and_review/README.md)）。
+- 修改架构或测试入口时，请同步更新 `documents/plan_and_review/` 中对应文档（见 [documents/plan_and_review/README.md](documents/plan_and_review/README.md)）。
 
 ## 许可证
 

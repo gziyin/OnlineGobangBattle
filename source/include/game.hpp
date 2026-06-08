@@ -446,10 +446,10 @@ private:
         online_mgr_->set_status(p1, OnlineStatus::HALL_IDLE);
         online_mgr_->set_status(p2, OnlineStatus::HALL_IDLE);
 
-        // 不立即销毁房间——断线超时场景下，对手可能还未重连
-        // 房间会在双方都断线后由 on_close 自然销毁
-
         LOG_INFO("游戏结束: " << room_id << ", 结果: " << result_str);
+
+        // 对局已结束：释放房间与用户映射，避免 user_room_map 残留阻塞再次匹配
+        room_mgr_->destroy_room(room_id);
     }
 
     void broadcast_to_room(const std::string& room_id, const std::string& msg) {

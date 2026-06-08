@@ -1,6 +1,6 @@
 # M4 Phase 3 实现计划：WebSocket 事件接入与游戏前端
 
-> **状态**: ✅ 已实现（待本地编译验证）
+> **状态**: ✅ 已完成（2026-06-08 文档同步；Linux 环境 `ctest -R test_websocket_game` 待复验）
 > **前置条件**: Phase 2 (game.hpp) 已完成
 > **预计工时**: 3-4 小时
 

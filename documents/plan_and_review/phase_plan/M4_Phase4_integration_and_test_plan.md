@@ -1,6 +1,6 @@
 # M4 Phase 4 实现计划：集成联调与端到端验证
 
-> **状态**: 📋 待实施
+> **状态**: 🟡 进行中（静态验收已完成，见 `M4_Phase4_verification_report.md`）
 > **前置条件**: Phase 3 (WebSocket 事件接入 + 游戏前端) 已完成
 > **预计工时**: 2-3 小时
 
@@ -25,7 +25,7 @@ Phase 4 的核心任务是**编译验证、服务器启动、浏览器联调**�
 | 操作 | 文件 | 说明 |
 |------|------|------|
 | 检查 | `source/CMakeLists.txt` | 确认所有依赖正确链接 |
-| 检查 | `source/main.cpp` | 确认 GameController 初始化和定时器集成 |
+| 检查 | `source/tests/websocket_smoke.cpp` | 确认 GameController 初始化和定时器集成（当前联调入口，无独立 `main.cpp`） |
 | 可能修改 | `client/css/game.css` | 根据联调结果优化样式 |
 | 可能修改 | `client/js/game.js` | 修复联调发现的问题 |
 | 可能修改 | `source/include/websocket_handler.hpp` | 修复联调发现的问题 |
@@ -63,9 +63,9 @@ ctest --test-dir . --output-on-failure
 
 ## 二、服务器启动验证
 
-### 2.1 检查 main.cpp 初始化
+### 2.1 检查 websocket_smoke.cpp 初始化
 
-确认 `main.cpp` 中：
+确认 `source/tests/websocket_smoke.cpp` 中：
 - `GameController` 已创建并初始化
 - `RoomManager` 已创建并注入到 `GameController`
 - `WebSocketHandler::init()` 传入了 `GameController` 指针
@@ -75,7 +75,7 @@ ctest --test-dir . --output-on-failure
 
 ```bash
 cd source/build
-./bin/gobang_server  # 或实际的服务器可执行文件名
+./bin/websocket_smoke  # 当前联调 smoke 服务入口
 ```
 
 **预期输出**：
@@ -250,7 +250,7 @@ Test-NetConnection -ComputerName localhost -Port 8080
    - 修复编译错误（如有）
 
 2. **服务器启动验证**
-   - 检查 main.cpp 初始化逻辑
+   - 检查 `websocket_smoke.cpp` 初始化逻辑
    - 启动服务器
    - 验证端口监听
 

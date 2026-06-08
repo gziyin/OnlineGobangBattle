@@ -3,7 +3,7 @@
 ## 1. 可提交产物
 
 - 源码：`source/include/`、`source/tests/`、`client/`
-- 文档：`documents/`、`plan_and_review/`
+- 文档：`documents/`、`documents/plan_and_review/`
 - 构建配置：`source/CMakeLists.txt`、`.gitignore`
 
 ## 2. 不可提交产物

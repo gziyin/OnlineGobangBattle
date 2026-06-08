@@ -228,11 +228,10 @@ cd source/build
 
 当前 CMakeLists.txt 中没有定义服务器可执行文件。如果需要手动启动服务器，需要：
 
-1. **确认是否有 `main.cpp`**:
+1. **确认联调入口**（当前无独立 `main.cpp`，使用 smoke 服务）:
 ```bash
-ls source/main.cpp
-# 或
-ls source/src/main.cpp
+ls source/tests/websocket_smoke.cpp
+ls source/build/bin/websocket_smoke
 ```
 
 2. **如果没有，需要创建或从测试代码中启动**

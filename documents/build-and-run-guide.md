@@ -94,17 +94,31 @@ cmake --build .
 ```bash
 cd source/build
 
+# 推荐：CTest 统一运行
+ctest --output-on-failure
+
+# 按标签分层
+ctest -L unit --output-on-failure
+ctest -L integration --output-on-failure
+ctest -L smoke --output-on-failure
+
 # M2 测试（需要 MySQL 运行中）
 ./bin/test_db_pool
 ./bin/test_user_table
 ./bin/test_security
 ./bin/test_auth_api
 
-# M3 测试（无外部依赖）
+# M3 测试
 ./bin/test_online
 ./bin/test_block_queue
 ./bin/test_matcher
 ./bin/test_connection_manager
+./bin/test_websocket_m3_flow
+
+# M4 测试
+./bin/test_room              # Phase 1 房间逻辑（unit）
+./bin/test_game              # Phase 2 游戏控制器（integration，需 MySQL）
+./bin/test_websocket_game    # Phase 3 WebSocket 对战端到端（integration，需 MySQL）
 ```
 
 ## 6. 启动服务
@@ -129,10 +143,12 @@ cd source/build
 |--------|------|------|
 | M1 环境搭建 | ✅ 已完成 | |
 | M2 数据库与用户模块 | ✅ 已完成 | 注册/登录/鉴权 |
-| M3 在线管理与匹配 | 🟡 代码已落地 | 待联调验证 |
-| M4 房间对战 | ⏳ 未开始 | |
+| M3 在线管理与匹配 | ✅ 已完成 | 大厅匹配、WebSocket 事件框架 |
+| M4 房间对战 | 🟡 进行中 | Phase 1–3 完成；Phase 4 编译与浏览器联调验收中 |
 | M5 聊天 | ⏳ 未开始 | |
-| M6 部署 | ⏳ 未开始 | |
+| M6 部署与文档 | 🟡 部分完成 | `ops/deploy.sh` 已具备；OpenAPI 与统一生产入口待补齐 |
+
+验收记录见 [plan_and_review/phase_plan/M4_Phase4_verification_report.md](plan_and_review/phase_plan/M4_Phase4_verification_report.md)。
 
 ## 8. 常见问题
 

@@ -1,4 +1,7 @@
-# C++ 在线五子棋对战项目规划 v2.0
+# C++ 在线五子棋对战项目规划 v2.2
+
+> **文档同步日期**: 2026-06-08  
+> **说明**: 本节反映仓库当前实现事实；历史规划差异见 `project_plan/history/`。
 
 ## 一、项目概述
 
@@ -17,16 +20,17 @@
 ### 1.3 技术栈
 | 类别 | 技术 |
 |------|------|
-| 后端语言 | C++11/14 |
-| 网络框架 | WebSocket++ (HTTP/WebSocket) |
+| 后端语言 | C++11 |
+| 网络框架 | WebSocket++ (HTTP/WebSocket，Boost.Asio) |
 | 数据库 | MySQL 8.0 |
 | JSON处理 | JsonCpp |
-| 密码加密 | bcrypt (libbcrypt / OpenSSL PBKDF2 备选) |
+| 密码加密 | OpenSSL PBKDF2 |
 | JWT 认证 | jwt-cpp (header-only) |
 | 前端 | HTML5/CSS3/JavaScript (ES6+) |
 | 开发环境 | Rocky Linux 9 (开发) / Ubuntu 22.04 LTS (部署) |
-| 构建工具 | Makefile (开发期) / CMake 3.20+ (后期可选迁移) |
-| API文档 | OpenAPI 3.0 |
+| 构建工具 | CMake 3.10+、Google Test、CTest |
+| 服务入口 | `source/tests/websocket_smoke.cpp`（联调）；生产级 `main` 待 M6 |
+| API文档 | OpenAPI 3.0（规划，M6 待编写） |
 
 ---
 
@@ -73,53 +77,43 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 模块划分
+### 2.2 模块划分（当前仓库结构）
+
 ```
-online_gobang/
-├── server/                      # 服务端代码
-│   ├── CMakeLists.txt          # CMake 构建配置
-│   ├── config/                 # 配置文件
-│   │   └── server.conf
-│   ├── include/                # 头文件
-│   │   ├── db.hpp             # 数据库操作模块
-│   │   ├── online.hpp         # 在线用户管理模块
-│   │   ├── room.hpp           # 房间类定义
-│   │   ├── room_manager.hpp   # 房间管理模块
-│   │   ├── matcher.hpp        # 匹配器模块
-│   │   ├── session.hpp        # 会话管理模块
-│   │   ├── server.hpp         # 服务器主模块
-│   │   ├── logger.hpp         # 日志模块
-│   │   ├── util.hpp           # 工具模块
-│   │   └── security.hpp       # 安全模块(加密/限流)
-│   ├── src/                    # 源码实现
-│   │   ├── main.cpp
-│   │   ├── db.cpp
-│   │   ├── online.cpp
-│   │   ├── room.cpp
-│   │   ├── room_manager.cpp
-│   │   ├── matcher.cpp
-│   │   ├── session.cpp
-│   │   ├── server.cpp
-│   │   ├── logger.cpp
-│   │   ├── util.cpp
-│   │   └── security.cpp
-│   └── tests/                  # 单元测试
-├── client/                     # 客户端代码
-│   ├── index.html             # 登录页面
-│   ├── hall.html              # 游戏大厅
-│   ├── room.html              # 游戏房间
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       ├── api.js            # API 封装
-│       ├── auth.js           # 认证模块
-│       ├── game.js           # 游戏逻辑
-│       └── websocket.js      # WebSocket 连接
-└── docs/                       # 文档
-    ├── api.md                 # API 文档(OpenAPI)
-    ├── deploy.md              # 部署文档
-    └── database.md            # 数据库设计文档
+OnlineGobangBattle/
+├── source/
+│   ├── CMakeLists.txt          # 唯一构建入口
+│   ├── config/                 # server.conf.example
+│   ├── include/                # 核心模块（header-only 为主）
+│   │   ├── db.hpp              # MySQL 连接池
+│   │   ├── user_table.hpp      # 用户表访问
+│   │   ├── security.hpp        # PBKDF2、JWT、限流
+│   │   ├── auth_handler.hpp    # HTTP 注册/登录
+│   │   ├── auth_middleware.hpp # JWT 中间件
+│   │   ├── online.hpp          # 四态在线管理
+│   │   ├── block_queue.hpp     # 匹配阻塞队列
+│   │   ├── matcher.hpp         # 分桶匹配器
+│   │   ├── matcher_interface.hpp
+│   │   ├── connection_manager.hpp  # WebSocket 连接映射（唯一暴露 connection_hdl 之一）
+│   │   ├── websocket_handler.hpp   # 事件分发（唯一暴露 connection_hdl 之一）
+│   │   ├── room.hpp            # GameRoom + RoomManager
+│   │   ├── game.hpp            # GameController
+│   │   ├── logger.hpp
+│   │   └── util.hpp
+│   └── tests/                  # 单元/集成/smoke（含 websocket_smoke 联调入口）
+├── client/
+│   ├── login.html
+│   ├── hall.html
+│   ├── room.html
+│   ├── css/game.css
+│   └── js/websocket.js, game.js
+├── scripts/                    # init_db.sh / init_db.sql
+├── documents/                  # 构建指南、工程规范
+│   └── plan_and_review/        # 里程碑计划与复盘
+└── ops/                        # deploy.sh, rollback.sh
 ```
+
+**架构约束**：`websocketpp::connection_hdl` 仅出现在 `connection_manager.hpp` 与 `websocket_handler.hpp`；业务模块通过 `user_id` 与 `ConnectionManager::send` 通信。
 
 ---
 
@@ -366,15 +360,15 @@ public:
 | 阶段 | 名称 | 计划周期 | 实际周期 | 主要目标 | 完成状态 |
 |------|------|----------|----------|----------|----------|
 | M1 | 环境搭建与基础框架 | 第 1-2 周 | 2026-03-31 | 完成开发环境，搭建 HTTP/WebSocket 服务器框架 | ✅ 已完成 |
-| M2 | 数据库与用户模块 | 第 3-4 周 | 2026-04-09 起 | 完成数据库设计、用户注册/登录/安全功能 | 🟡 进行中 (Phase 1 完成) |
-| M3 | 在线管理与匹配模块 | 第 5-6 周 | 待定 | 完成在线用户管理、匹配对战功能 | ⏳ 待开始 |
-| M4 | 游戏房间与对战逻辑 | 第 7-8 周 | 待定 | 完成房间管理、五子棋对战核心逻辑、断线重连 | ⏳ 待开始 |
+| M2 | 数据库与用户模块 | 第 3-4 周 | 2026-04-15 | 完成数据库设计、用户注册/登录/安全功能 | ✅ 已完成 |
+| M3 | 在线管理与匹配模块 | 第 5-6 周 | 2026-05-25 | 完成在线用户管理、匹配对战功能 | ✅ 已完成 |
+| M4 | 游戏房间与对战逻辑 | 第 7-8 周 | 2026-05-26 起 | 完成房间管理、五子棋对战核心逻辑、断线重连 | 🟡 进行中（Phase 1–3 完成，Phase 4 联调验收中） |
 | M5 | 聊天功能与优化 | 第 9 周 | 待定 | 完成实时聊天、敏感词过滤、性能优化 | ⏳ 待开始 |
-| M6 | 测试与部署 | 第 10 周 | 待定 | 完成测试、部署、文档编写 | ⏳ 待开始 |
+| M6 | 测试与部署 | 第 10 周 | 待定 | 完成测试、部署、文档编写 | 🟡 部分完成（ops 脚本已有） |
 
 > **缓冲时间**: 预留 2 周应对延期风险
 >
-> **当前进度说明**: M2 采用 Phase 细分策略（Phase 1-4），Phase 1 数据库连接池已完成 ✅，Phase 2 用户数据访问层开发中
+> **当前进度说明（2026-06-08）**: M4 Phase 1 `room.hpp`、Phase 2 `game.hpp`、Phase 3 WebSocket 集成与 `room.html` 前端已完成；Phase 4 编译与浏览器端到端联调验收进行中。详见 `documents/plan_and_review/phase_plan/M4_Phase4_verification_report.md`。
 
 ---
 
