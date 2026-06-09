@@ -49,3 +49,4 @@ CLAUDE.md
 .example/
 AGENTS.md
 LICENSE
+source/config/server.conf.test
