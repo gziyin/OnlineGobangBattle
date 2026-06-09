@@ -4,7 +4,7 @@
 #include "user_table.hpp"
 #include "online.hpp"
 #include "util.hpp"
-#include "config.h"
+#include "test_config.hpp"
 #include <gtest/gtest.h>
 
 using namespace gobang;
@@ -13,7 +13,7 @@ class AuthApiTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 初始化 DBPool
-        gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
+        gobang::util::Config cfg = gobang::testutil::load_test_config();
         pool_.init(cfg);
         user_table_.init(&pool_);
 

@@ -3,7 +3,7 @@
 #include "../include/user_table.hpp"
 #include "../include/db.hpp"
 #include "../include/util.hpp"
-#include "config.h"
+#include "test_config.hpp"
 
 #include <iostream>
 #include <thread>
@@ -34,17 +34,14 @@ int main() {
     // 加载配置
     util::Config cfg;
     try {
-        cfg = util::load_config(GOBANG_CONFIG_PATH);
-        std::cout << "[INFO] 配置加载成功：" << cfg.db_host << ":" << cfg.db_port << "/" << cfg.db_name << "\n\n";
+        cfg = testutil::load_test_config();
+        std::cout << "[INFO] 测试配置加载成功：" << cfg.db_host << ":" << cfg.db_port << "/"
+                  << cfg.db_name << "\n\n";
     } catch (const std::exception& e) {
-        std::cout << "[WARN] 配置加载失败：" << e.what() << "\n";
-        std::cout << "[INFO] 使用默认配置继续测试...\n\n";
-        cfg.db_host = "127.0.0.1";
-        cfg.db_port = 3306;
-        cfg.db_user = "root";
-        cfg.db_password = "yourpassword"; // 需要替换为实际密码
-        cfg.db_name = "gobang_db";
-        cfg.db_pool_size = 5;
+        std::cout << "[FAIL] 测试配置加载失败：" << e.what() << "\n";
+        std::cout << "[INFO] 请复制 source/config/server.conf.test.example 为 "
+                     "source/config/server.conf.test 并创建 gobang_db_test\n";
+        return 1;
     }
 
     // 初始化日志（测试用）

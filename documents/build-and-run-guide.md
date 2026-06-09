@@ -78,6 +78,28 @@ vim server.conf
 | `db_name` | 数据库名（默认 `gobang_db`） |
 | `jwt_secret` | 替换为随机字符串（≥ 32 字符） |
 
+### 3.1 集成测试库（与联调库隔离）
+
+`test_auth_api`、`test_user_table` 会执行 `TRUNCATE TABLE user`，**必须**使用独立测试库，避免清空联调数据。
+
+```bash
+# 1) 创建测试库与 user 表（结构与 gobang_db 相同）
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS gobang_db_test CHARACTER SET utf8mb4;"
+sed 's/gobang_db/gobang_db_test/g' scripts/init_db.sql | mysql -u root -p
+
+# 2) 测试专用配置（不进 Git）
+cd source/config
+cp server.conf.test.example server.conf.test
+vim server.conf.test   # db_name=gobang_db_test；db_user/db_password 与 server.conf 一致
+```
+
+| 配置文件 | 用途 | 默认库 |
+|----------|------|--------|
+| `server.conf` | 联调、`websocket_smoke`、生产 smoke | `gobang_db` |
+| `server.conf.test` | `ctest` 中会写/清空 user 表的集成测试 | `gobang_db_test` |
+
+**注意**：`server.conf` 与 `server.conf.test` 的 `jwt_secret` 必须一致，否则 `test_auth_api` 鉴权用例会失败。
+
 ## 4. 构建
 
 ```bash
@@ -94,7 +116,7 @@ cmake --build .
 ```bash
 cd source/build
 
-# 推荐：CTest 统一运行
+# 推荐：CTest 统一运行（需已配置 server.conf.test → gobang_db_test）
 ctest --output-on-failure
 
 # 按标签分层

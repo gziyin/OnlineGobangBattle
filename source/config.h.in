@@ -3,8 +3,11 @@
 // 由 CMake 配置生成，定义项目根目录路径
 #define GOBANG_SOURCE_DIR "@SOURCE_DIR@"
 
-// 配置文件路径
+// 配置文件路径（联调 / 生产 smoke）
 #define GOBANG_CONFIG_PATH "@SOURCE_DIR@/config/server.conf"
+
+// 集成测试专用配置（TRUNCATE user 等破坏性测试读此文件 → gobang_db_test）
+#define GOBANG_TEST_CONFIG_PATH "@SOURCE_DIR@/config/server.conf.test"
 
 // 日志文件路径（测试用）
 #define GOBANG_TEST_LOG_PATH "@SOURCE_DIR@/logs/test.log"

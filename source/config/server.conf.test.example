@@ -1,0 +1,30 @@
+# Online Gobang integration-test configuration
+# Copy to server.conf.test (gitignored) and align credentials with server.conf.
+# Lines starting with # are comments.
+
+# Server
+server_port     = 8080
+server_threads  = 4
+
+# Database — isolated test schema (ctest must not touch gobang_db)
+db_host         = 127.0.0.1
+db_port         = 3306
+db_user         = your_db_user
+db_password     = your_db_password
+db_name         = gobang_db_test
+db_pool_size    = 10
+
+# Logging
+log_file        = logs/test.log
+log_level       = INFO
+log_max_bytes   = 10485760
+
+# Gameplay
+reconnect_timeout  = 60
+match_timeout      = 30
+heartbeat_interval = 30
+
+# JWT — keep jwt_secret identical to server.conf so auth tests pass
+jwt_secret   = "CHANGE_ME_TO_A_RANDOM_SECRET_32+_CHARS!"
+jwt_issuer   = "online_gobang"
+jwt_expire   = 86400
