@@ -249,7 +249,10 @@ public:
         server_->listen(endpoint);
         server_->start_accept();
 
-        _thread = std::thread([this]() { server_->run(); });
+        _thread = std::thread([this]() {
+            start_disconnect_grace_driver();
+            server_->run();
+        });
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -282,6 +285,32 @@ public:
     gobang::WebSocketHandler& ws_handler() { return ws_handler_; }
 
 private:
+    // 与 GobangServer 一致：周期性驱动 io_service，确保 Asio 回合定时器能被调度
+    void start_disconnect_grace_driver() {
+        typedef websocketpp::lib::asio::steady_timer timer;
+        struct TimerDriver : std::enable_shared_from_this<TimerDriver> {
+            gobang::WebSocketHandler* handler = nullptr;
+            std::shared_ptr<timer> timer_ptr;
+
+            void schedule() {
+                std::shared_ptr<TimerDriver> self = shared_from_this();
+                timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
+                timer_ptr->async_wait([self](const websocketpp::lib::error_code& ec) {
+                    if (ec) {
+                        return;
+                    }
+                    self->handler->process_timers();
+                    self->schedule();
+                });
+            }
+        };
+
+        std::shared_ptr<TimerDriver> driver = std::make_shared<TimerDriver>();
+        driver->handler = &ws_handler_;
+        driver->timer_ptr = std::make_shared<timer>(server_->get_io_service());
+        driver->schedule();
+    }
+
     std::thread _thread;
     std::unique_ptr<gobang::WebsocketServer> server_;
     gobang::ConnectionManager conn_mgr_;
@@ -513,10 +542,8 @@ TEST_F(WebSocketGameTest, GameTimeout) {
     m.black_client->drain_events();
     m.white_client->drain_events();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-
-    Json::Value over1 = m.black_client->wait_for_event("game.over", 5000);
-    Json::Value over2 = m.white_client->wait_for_event("game.over", 5000);
+    Json::Value over1 = m.black_client->wait_for_event("game.over", 6000);
+    Json::Value over2 = m.white_client->wait_for_event("game.over", 6000);
     ASSERT_FALSE(over1.isNull()) << m.black_client->last_error();
     ASSERT_FALSE(over2.isNull()) << m.white_client->last_error();
     EXPECT_EQ(over1["data"]["reason"].asString(), "timeout");
