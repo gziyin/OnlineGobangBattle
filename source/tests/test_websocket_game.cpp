@@ -206,6 +206,12 @@ public:
         matcher_.init(&online_mgr_);
         matcher_.start();
 
+        server_->clear_access_channels(websocketpp::log::alevel::all);
+        server_->clear_error_channels(websocketpp::log::elevel::all);
+        server_->init_asio();
+        server_->set_reuse_addr(true);
+
+        // init_asio 之后才能绑定正确的 io_service，否则 Asio 回合定时器不会触发
         game_ctrl_ = gobang::GameController::create();
         game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr,
                          &server_->get_io_service());
@@ -214,11 +220,6 @@ public:
         ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, server_.get(),
                          game_ctrl_.get());
         ws_handler_.set_disconnect_grace_seconds(1);
-
-        server_->clear_access_channels(websocketpp::log::alevel::all);
-        server_->clear_error_channels(websocketpp::log::elevel::all);
-        server_->init_asio();
-        server_->set_reuse_addr(true);
 
         server_->set_validate_handler([this](connection_hdl hdl) {
             auto con = server_->get_con_from_hdl(hdl);

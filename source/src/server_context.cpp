@@ -24,13 +24,6 @@ bool GobangServer::init(const char* config_path) {
     matcher_.start();
     http_router_.init(&user_table_, &online_mgr_, &conn_mgr_);
 
-    game_ctrl_ = GameController::create();
-    game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, &user_table_,
-                     &server_.get_io_service());
-    game_ctrl_->set_disconnect_timeout_seconds(config_.reconnect_timeout);
-
-    ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, &server_, game_ctrl_.get());
-
     server_.init_asio();
     server_.set_reuse_addr(true);
 
@@ -41,6 +34,14 @@ bool GobangServer::init(const char* config_path) {
         server_.clear_access_channels(websocketpp::log::alevel::all);
         server_.clear_error_channels(websocketpp::log::elevel::all);
     }
+
+    // init_asio 之后才能绑定正确的 io_service，否则 Asio 回合/断线定时器不会触发
+    game_ctrl_ = GameController::create();
+    game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, &user_table_,
+                     &server_.get_io_service());
+    game_ctrl_->set_disconnect_timeout_seconds(config_.reconnect_timeout);
+
+    ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, &server_, game_ctrl_.get());
 
     wire_handlers();
     return true;
