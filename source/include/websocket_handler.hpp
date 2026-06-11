@@ -80,7 +80,7 @@ public:
     int64_t get_user_id_from_hdl(WebsocketConnectionHdl hdl) const;
 
     /**
-     * @brief 处理游戏超时队列（可在主循环中周期性调用）
+     * @brief 处理断线 grace 延迟队列（可在主循环中周期性调用）
      */
     void process_timers();
 
@@ -155,10 +155,16 @@ inline void WebSocketHandler::init(ConnectionManager* conn_mgr,
     _server = server;
     _game_ctrl = game_ctrl;
 
-    // 设置匹配成功回调
+    // 设置匹配成功回调（投递到 IO 线程，避免跨线程 WebSocket 操作竞态）
     if (_matcher) {
         _matcher->set_match_callback([this](const MatchResult& result) {
-            this->on_match_success(result);
+            if (_server) {
+                _server->get_io_service().post([this, result]() {
+                    this->on_match_success(result);
+                });
+            } else {
+                this->on_match_success(result);
+            }
         });
     }
 
@@ -547,9 +553,6 @@ inline void WebSocketHandler::handle_game_reconnect(int64_t user_id, const Json:
 
 inline void WebSocketHandler::process_timers() {
     flush_pending_disconnects();
-    if (_game_ctrl) {
-        _game_ctrl->process_pending_timeouts();
-    }
 }
 
 inline void WebSocketHandler::send_error_to_user(int64_t user_id, int code,

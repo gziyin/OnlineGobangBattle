@@ -113,9 +113,15 @@ endif()
 include_directories(${MYSQL_INCLUDE_DIRS})
 link_directories(${MYSQL_LIBRARY_DIRS})
 
+add_library(gobang_core STATIC src/game.cpp)
+target_link_libraries(gobang_core PUBLIC
+    ${JSONCPP_LIBRARIES}
+    Threads::Threads
+)
+
 function(add_gobang_test target_name source_file)
     add_executable(${target_name} ${source_file})
-    target_link_libraries(${target_name} ${ARGN})
+    target_link_libraries(${target_name} gobang_core ${ARGN})
     set_target_properties(${target_name} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
     )
@@ -200,6 +206,13 @@ add_gobang_test(websocket_smoke tests/websocket_smoke.cpp
     Threads::Threads
 )
 register_gobang_ctest(websocket_smoke smoke)
+
+add_gobang_test(gobang_server app/server_main.cpp
+    ${JSONCPP_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${MYSQL_LIBRARIES}
+    Threads::Threads
+)
 
 add_gobang_test(test_websocket_m3_flow tests/test_websocket_m3_flow.cpp
     ${JSONCPP_LIBRARIES}

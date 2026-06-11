@@ -207,7 +207,8 @@ public:
         matcher_.start();
 
         game_ctrl_ = gobang::GameController::create();
-        game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr);
+        game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, nullptr,
+                         &server_->get_io_service());
         game_ctrl_->set_timeout_seconds(2);
 
         ws_handler_.init(&conn_mgr_, &online_mgr_, &matcher_, server_.get(),
@@ -513,7 +514,6 @@ TEST_F(WebSocketGameTest, GameTimeout) {
     m.white_client->drain_events();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-    _server.ws_handler().process_timers();
 
     Json::Value over1 = m.black_client->wait_for_event("game.over", 5000);
     Json::Value over2 = m.white_client->wait_for_event("game.over", 5000);

@@ -1,10 +1,11 @@
 /**
- * @file websocket_smoke.cpp
- * @brief M3 WebSocket 接线层最小 smoke 测试（编译检查 + 端口绑定验证）
+ * @file server_main.cpp
+ * @brief Online Gobang Battle 生产入口
  */
 
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <signal.h>
 
 #include "config.h"
@@ -22,10 +23,9 @@
 
 using websocketpp::connection_hdl;
 
-extern gobang::WebsocketServer g_server;
-
 namespace {
 
+gobang::WebsocketServer g_server;
 gobang::ConnectionManager g_conn_mgr;
 gobang::OnlineManager g_online_mgr;
 gobang::Matcher g_matcher;
@@ -36,33 +36,63 @@ gobang::RoomManager g_room_mgr;
 gobang::HttpRouter g_http_router;
 std::shared_ptr<gobang::GameController> g_game_ctrl;
 
-bool is_allowed_websocket_resource(const std::string& resource) {
+std::string trim_query_and_fragment(const std::string& resource) {
     size_t end = resource.find_first_of("?#");
-    std::string path = resource.substr(0, end);
+    return resource.substr(0, end);
+}
+
+bool is_allowed_websocket_resource(const std::string& resource) {
+    std::string path = trim_query_and_fragment(resource);
     return path == "/ws" || path == "/ws/";
 }
 
 void on_signal(int sig) {
     (void)sig;
+    std::cout << "\nShutting down..." << std::endl;
     g_matcher.stop();
     g_server.stop();
     exit(0);
 }
 
+void start_disconnect_grace_driver(gobang::WebsocketServer& server,
+                                   gobang::WebSocketHandler& handler) {
+    typedef websocketpp::lib::asio::steady_timer timer;
+    struct TimerDriver : std::enable_shared_from_this<TimerDriver> {
+        gobang::WebSocketHandler* handler = nullptr;
+        std::shared_ptr<timer> timer_ptr;
+
+        void schedule() {
+            std::shared_ptr<TimerDriver> self = shared_from_this();
+            timer_ptr->expires_from_now(websocketpp::lib::asio::milliseconds(500));
+            timer_ptr->async_wait([self](const websocketpp::lib::error_code& ec) {
+                if (ec) {
+                    return;
+                }
+                self->handler->process_timers();
+                self->schedule();
+            });
+        }
+    };
+
+    std::shared_ptr<TimerDriver> driver = std::make_shared<TimerDriver>();
+    driver->handler = &handler;
+    driver->timer_ptr = std::make_shared<timer>(server.get_io_service());
+    driver->schedule();
+}
+
 } // namespace
 
-gobang::WebsocketServer g_server;
-
 int main() {
-    std::cout << "=== M3 WebSocket Smoke Test ===" << std::endl;
+    std::cout << "=== Online Gobang Battle Server ===" << std::endl;
 
-    gobang::Logger::instance().init("websocket_smoke.log");
+    gobang::Logger::instance().init("gobang_server.log");
 
     try {
         gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
         gobang::util::validate_config(cfg);
         g_db_pool.init(cfg);
         g_user_table.init(&g_db_pool);
+        LOG_INFO("main: database initialized");
     } catch (const std::exception& e) {
         std::cerr << "DB init failed: " << e.what() << std::endl;
         return 1;
@@ -82,8 +112,8 @@ int main() {
 
     g_server.init_asio();
     g_server.set_reuse_addr(true);
-    g_server.clear_access_channels(websocketpp::log::alevel::all);
-    g_server.clear_error_channels(websocketpp::log::elevel::all);
+    g_server.set_access_channels(websocketpp::log::alevel::all);
+    g_server.set_error_channels(websocketpp::log::elevel::all);
 
     g_server.set_validate_handler([](connection_hdl hdl) {
         auto con = g_server.get_con_from_hdl(hdl);
@@ -114,16 +144,16 @@ int main() {
         std::cout << "Listening on 0.0.0.0:8080 (IPv4)..." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Listen failed: " << e.what() << std::endl;
-        std::cerr << "Port 8080 may be in use. Smoke test passes compilation check."
-                  << std::endl;
         g_matcher.stop();
-        return 0;
+        return 1;
     }
 
     signal(SIGINT, on_signal);
     g_server.start_accept();
 
-    std::cout << "Smoke test: all components assembled successfully." << std::endl;
+    std::cout << "Server started. Press Ctrl+C to stop." << std::endl;
+
+    start_disconnect_grace_driver(g_server, g_ws_handler);
     g_server.run();
 
     g_matcher.stop();

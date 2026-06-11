@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "config.h"
+#include "message_sender.hpp"
 
 #include <websocketpp/server.hpp>
 #include <websocketpp/config/asio.hpp>
@@ -23,13 +24,13 @@ typedef websocketpp::server<websocketpp::config::asio> WebsocketServer;
 #endif
 typedef websocketpp::connection_hdl WebsocketConnectionHdl;
 
-class ConnectionManager {
+class ConnectionManager : public IMessageSender {
 public:
     void init(WebsocketServer* server);
     void add(int64_t user_id, WebsocketConnectionHdl hdl);
     void remove(int64_t user_id);
     bool get(int64_t user_id, WebsocketConnectionHdl& out) const;
-    bool send(int64_t user_id, const std::string& msg);
+    bool send(int64_t user_id, const std::string& msg) override;
     bool is_connected(int64_t user_id) const;
     std::vector<int64_t> get_all_user_ids() const;
     size_t connection_count() const;

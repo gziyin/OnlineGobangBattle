@@ -12,8 +12,10 @@
 #include "game.hpp"
 #include "room.hpp"
 #include "online.hpp"
-#include "connection_manager.hpp"
+#include "asio_timer_types.hpp"
 #include "logger.hpp"
+
+#include <websocketpp/common/asio.hpp>
 
 namespace {
 
@@ -112,16 +114,31 @@ TEST_F(GameControllerUnitTest, MultipleGameStartStop) {
     SUCCEED();
 }
 
-TEST_F(GameControllerUnitTest, ProcessPendingTimeouts) {
+TEST_F(GameControllerUnitTest, TurnTimeoutViaAsioTimer) {
+    gobang::IoService io;
+    typedef websocketpp::lib::asio::io_service::work IoWorkGuard;
+    std::unique_ptr<IoWorkGuard> work_guard(new IoWorkGuard(io));
+    std::thread io_thread([&io]() { io.run(); });
+
+    auto ctrl = gobang::GameController::create();
+    ctrl->init(&room_mgr_, &online_mgr_, nullptr, nullptr, &io);
+    ctrl->set_timeout_seconds(2);
+
     online_mgr_.user_online(4001);
     online_mgr_.user_online(4002);
-    game_ctrl_->handle_game_start(4001, 4002);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2100));
-    game_ctrl_->process_pending_timeouts();
+    ctrl->handle_game_start(4001, 4002);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
     EXPECT_EQ(room_mgr_.get_room_by_user(4001), nullptr);
     EXPECT_EQ(online_mgr_.get_status(4001), gobang::OnlineStatus::HALL_IDLE);
     EXPECT_EQ(online_mgr_.get_status(4002), gobang::OnlineStatus::HALL_IDLE);
+
+    ctrl->stop_all_timers();
+    work_guard.reset();
+    io.stop();
+    if (io_thread.joinable()) {
+        io_thread.join();
+    }
 }
 
 } // namespace
