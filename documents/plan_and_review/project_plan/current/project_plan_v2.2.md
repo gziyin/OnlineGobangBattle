@@ -1,7 +1,7 @@
 # C++ 在线五子棋对战项目规划 v2.2
 
-> **文档同步日期**: 2026-06-08  
-> **说明**: 本节反映仓库当前实现事实；历史规划差异见 `project_plan/history/`。
+> **文档同步日期**: 2026-06-11  
+> **说明**: 本节反映仓库当前实现事实；历史规划差异见 `project_plan/history/`。架构重构详情见 `refactor_26_6_11.md`。
 
 ## 一、项目概述
 
@@ -82,38 +82,50 @@
 ```
 OnlineGobangBattle/
 ├── source/
-│   ├── CMakeLists.txt          # 唯一构建入口
+│   ├── CMakeLists.txt          # 唯一构建入口；含 gobang_core 静态库
+│   ├── app/
+│   │   └── server_main.cpp     # 生产入口 → gobang_server
+│   ├── src/                    # gobang_core 实现
+│   │   ├── game.cpp
+│   │   ├── websocket_handler.cpp
+│   │   └── server_context.cpp  # GobangServer 组装
 │   ├── config/                 # server.conf.example
-│   ├── include/                # 核心模块（header-only 为主）
+│   ├── include/
+│   │   ├── asio_timer_types.hpp
+│   │   ├── message_sender.hpp  # IMessageSender 抽象
+│   │   ├── http_router.hpp     # HTTP 路由 + GET /health
+│   │   ├── server_context.hpp
 │   │   ├── db.hpp              # MySQL 连接池
 │   │   ├── user_table.hpp      # 用户表访问
 │   │   ├── security.hpp        # PBKDF2、JWT、限流
 │   │   ├── auth_handler.hpp    # HTTP 注册/登录
-│   │   ├── auth_middleware.hpp # JWT 中间件
+│   │   ├── auth_middleware.hpp
 │   │   ├── online.hpp          # 四态在线管理
-│   │   ├── block_queue.hpp     # 匹配阻塞队列
-│   │   ├── matcher.hpp         # 分桶匹配器
+│   │   ├── block_queue.hpp
+│   │   ├── matcher.hpp         # 分桶匹配器（待拆 cpp）
 │   │   ├── matcher_interface.hpp
-│   │   ├── connection_manager.hpp  # WebSocket 连接映射（唯一暴露 connection_hdl 之一）
-│   │   ├── websocket_handler.hpp   # 事件分发（唯一暴露 connection_hdl 之一）
-│   │   ├── room.hpp            # GameRoom + RoomManager
-│   │   ├── game.hpp            # GameController
+│   │   ├── connection_manager.hpp  # 实现 IMessageSender
+│   │   ├── websocket_handler.hpp   # WS 事件分发（声明）
+│   │   ├── room.hpp
+│   │   ├── game.hpp              # GameController（声明）
 │   │   ├── logger.hpp
 │   │   └── util.hpp
-│   └── tests/                  # 单元/集成/smoke（含 websocket_smoke 联调入口）
+│   └── tests/                  # 单元/集成/smoke；websocket_smoke 为 smoke 目标
 ├── client/
-│   ├── login.html
-│   ├── hall.html
-│   ├── room.html
+│   ├── login.html, hall.html, room.html
 │   ├── css/game.css
 │   └── js/websocket.js, game.js
 ├── scripts/                    # init_db.sh / init_db.sql
-├── documents/                  # 构建指南、工程规范
-│   └── plan_and_review/        # 里程碑计划与复盘
-└── ops/                        # deploy.sh, rollback.sh
+├── documents/
+│   └── plan_and_review/
+└── ops/                        # deploy.sh, gobang_server.service, nginx 模板
 ```
 
-**架构约束**：`websocketpp::connection_hdl` 仅出现在 `connection_manager.hpp` 与 `websocket_handler.hpp`；业务模块通过 `user_id` 与 `ConnectionManager::send` 通信。
+**架构约束**：
+
+- `websocketpp::connection_hdl` 仅出现在 `connection_manager.hpp` 与 `websocket_handler.hpp`。
+- `GameController` 通过 `IMessageSender*` 发消息，不直接依赖 WebSocket++。
+- **初始化顺序**：`server.init_asio()` → `game_ctrl->init(..., &io_service)` → `ws_handler.init(...)`。
 
 ---
 
@@ -528,4 +540,4 @@ public:
 ---
 
 *文档版本: v2.2*
-*更新日期: 2026-03-30*
+*更新日期: 2026-06-11*

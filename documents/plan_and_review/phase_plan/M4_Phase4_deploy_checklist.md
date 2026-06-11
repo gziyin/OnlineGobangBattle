@@ -226,15 +226,21 @@ cd source/build
 
 ### 5.1 检查服务器入口
 
-当前 CMakeLists.txt 中没有定义服务器可执行文件。如果需要手动启动服务器，需要：
+生产与联调使用 **`gobang_server`**（`source/app/server_main.cpp` + `GobangServer`）。Smoke 验证使用 `websocket_smoke`。
 
-1. **确认联调入口**（当前无独立 `main.cpp`，使用 smoke 服务）:
 ```bash
-ls source/tests/websocket_smoke.cpp
-ls source/build/bin/websocket_smoke
+ls source/app/server_main.cpp
+ls source/build/bin/gobang_server
+ls source/build/bin/websocket_smoke   # 可选 smoke
 ```
 
-2. **如果没有，需要创建或从测试代码中启动**
+启动生产/联调：
+
+```bash
+cd source/build
+./bin/gobang_server
+curl -s http://127.0.0.1:8080/health
+```
 
 ### 5.2 数据库配置
 
@@ -264,19 +270,19 @@ exit
 
 ### 6.1 启动服务器
 
-**方式一：如果有独立的服务器程序**
+**方式一：生产 / 联调（推荐）**
 ```bash
 cd source/build
-./bin/gobang_server  # 或实际的服务器可执行文件
+./bin/gobang_server
 ```
 
-**方式二：使用测试服务器（如果可用）**
+**方式二：Smoke 验证**
 ```bash
-# 某些测试可能包含服务器启动逻辑
-./bin/test_websocket_game --server
+cd source/build
+./bin/websocket_smoke
 ```
 
-**方式三：使用 Python/Node 简易服务器（仅静态文件）**
+**方式三：仅静态文件（不含 WebSocket 后端）**
 ```bash
 # 在 client 目录启动简易 HTTP 服务器
 cd client

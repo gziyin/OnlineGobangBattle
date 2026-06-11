@@ -1,5 +1,8 @@
 # M1 基础设施 - 编译与测试指南
 
+> **注意（2026-06-11）**：本文为 M1 阶段历史文档，路径与依赖说明已过时。  
+> **当前请以** [`documents/build-and-run-guide.md`](../../documents/build-and-run-guide.md) **与根目录** [`README.md`](../../README.md) **为准**（含 `gobang_server`、`gobang_core`、完整 CTest 标签）。
+
 ## 环境要求
 
 - **编译器**: g++ 7+ (支持 C++11)

@@ -95,7 +95,7 @@ vim server.conf.test   # db_name=gobang_db_test；db_user/db_password 与 server
 
 | 配置文件 | 用途 | 默认库 |
 |----------|------|--------|
-| `server.conf` | 联调、`websocket_smoke`、生产 smoke | `gobang_db` |
+| `server.conf` | 联调、`gobang_server`、生产 | `gobang_db` |
 | `server.conf.test` | `ctest` 中会写/清空 user 表的集成测试 | `gobang_db_test` |
 
 **注意**：`server.conf` 与 `server.conf.test` 的 `jwt_secret` 必须一致，否则 `test_auth_api` 鉴权用例会失败。
@@ -145,19 +145,31 @@ ctest -L smoke --output-on-failure
 
 ## 6. 启动服务
 
+### 6.1 生产 / 联调（推荐）
+
+```bash
+cd source/build
+./bin/gobang_server
+```
+
+服务监听 `0.0.0.0:8080`（以 `source/config/server.conf` 中 `server_port` 为准）：
+
+| 端点 | 类型 | 说明 |
+|------|------|------|
+| `GET /health` | HTTP | 健康检查（JSON `{"status":"ok"}`） |
+| `/api/v1/auth/register`、`/login` | HTTP | 注册 / 登录 |
+| `/ws` | WebSocket | 大厅 / 匹配 / 对战事件 |
+
+按 `Ctrl+C` 优雅停止。生产环境可安装 `ops/gobang_server.service` 并用 nginx 反代（见 `ops/nginx-gobang.conf.example`）。
+
+### 6.2 Smoke 验证（可选）
+
 ```bash
 cd source/build
 ./bin/websocket_smoke
 ```
 
-服务监听 `0.0.0.0:8080`：
-
-| 端点 | 类型 | 说明 |
-|------|------|------|
-| `http://host:8080` | HTTP | 提示 "WebSocket server is running" |
-| `ws://host:8080/ws` | WebSocket | 大厅匹配事件入口 |
-
-按 `Ctrl+C` 优雅停止。
+用于编译链接与端口绑定 smoke 测试，**非**生产部署入口。
 
 ## 7. 当前功能状态
 
@@ -166,9 +178,9 @@ cd source/build
 | M1 环境搭建 | ✅ 已完成 | |
 | M2 数据库与用户模块 | ✅ 已完成 | 注册/登录/鉴权 |
 | M3 在线管理与匹配 | ✅ 已完成 | 大厅匹配、WebSocket 事件框架 |
-| M4 房间对战 | 🟡 进行中 | Phase 1–3 完成；Phase 4 编译与浏览器联调验收中 |
+| M4 房间对战 | ✅ 已完成 | 代码 + Linux CTest 全量通过 |
 | M5 聊天 | ⏳ 未开始 | |
-| M6 部署与文档 | 🟡 部分完成 | `ops/deploy.sh` 已具备；OpenAPI 与统一生产入口待补齐 |
+| M6 部署与文档 | 🟡 部分完成 | `deploy.sh`、`gobang_server`、systemd/nginx 模板已具备；OpenAPI、CORS 白名单、前端 `config.js` 待补齐 |
 
 验收记录见 [plan_and_review/phase_plan/M4_Phase4_verification_report.md](plan_and_review/phase_plan/M4_Phase4_verification_report.md)。
 

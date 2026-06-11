@@ -16,7 +16,7 @@
 2. **裸 `MYSQL*`** —— 始终用 `DBPool::get_connection()` 返回的 `ConnGuard`
 3. **`std::cout` 输出日志** —— 使用 `LOG_DEBUG/INFO/WARN/ERROR` 宏
 4. **请求处理器中抛异常** —— 用返回值携带错误信息；仅致命初始化错误可抛异常
-5. **`.cpp` 实现文件** —— 当前阶段所有代码写在 `.hpp` 中（纯头文件约定）
+5. **`.cpp` 实现文件** —— 核心模块已拆至 `gobang_core` 静态库（`game.cpp`、`websocket_handler.cpp`、`server_context.cpp`）；新增实现优先放入对应 `.cpp`，头文件保留声明
 6. **无同步的全局可变状态** —— 每个共享变量都需要 `std::mutex` + `std::lock_guard`
 7. **SQL 字符串拼接** —— 始终用预处理语句（`mysql_stmt_*`）
 8. **析构函数中抛异常** —— 可能导致 `std::terminate`
@@ -120,6 +120,7 @@ ctest --test-dir source/build -L smoke --output-on-failure
 - **线程要 stop + join**：测试启动的 server/client/worker 线程必须在 `TearDown()`/`stop()` 中停止并 `join()`；禁止析构时线程仍 `joinable()`。
 - **ASSERT_* 的返回类型约束**：禁止在“返回非 void”的 helper 内使用 `ASSERT_*`；改为 `void + out 参数` 或返回 `testing::AssertionResult`。
 - **事件语义对齐**：断言要匹配实现（例如胜负步可能只发 `game.over`，不再发 `game.move`）。
+- **WebSocket 集成测试 server 初始化顺序**：`init_asio()` 必须在 `GameController::init(..., &io_service)` 之前完成；详见 [server-init-and-timers.md](../backend/server-init-and-timers.md)。
 
 ---
 

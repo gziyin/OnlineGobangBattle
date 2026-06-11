@@ -13,9 +13,20 @@
 
 ## 当前工程事实（必须与代码一致）
 
-- 服务器代码位于 `source/include/*.hpp`（当前为头文件内联实现为主）。
-- 测试以 `source/tests/*.cpp` 可执行目标存在，通过 CMake + CTest 统一注册与分层运行。
-- 当前阶段不做 `hpp -> cpp` 重构，避免引入行为变化。
+> **架构重构基准日**：2026-06-11（详见 `project_plan/current/refactor_26_6_11.md`）
+
+- **生产入口**：`source/app/server_main.cpp` → 可执行文件 `gobang_server`；由 `GobangServer`（`server_context.hpp/cpp`）组装各组件。
+- **核心库**：`gobang_core` 静态库，实现位于 `source/src/game.cpp`、`websocket_handler.cpp`、`server_context.cpp`。
+- **头文件**：`source/include/` 保留声明与体量较小的 header-only 模块（如 `online.hpp`、`matcher.hpp`）。
+- **消息边界**：`GameController` 依赖 `IMessageSender`（`message_sender.hpp`），不直接 include WebSocket++。
+- **定时器**：回合/断线超时使用 Asio `steady_timer`；断线 grace 仍由 `WebSocketHandler::process_timers()` + 500ms `TimerDriver` 驱动。
+- **初始化顺序（强制）**：`server.init_asio()` 之后才能 `game_ctrl->init(..., &server.get_io_service())`。
+- **测试**：`source/tests/*.cpp` 经 CMake + CTest 注册；smoke 目标 `websocket_smoke` 用于绑定验证，非生产入口。
+- **部署模板**：`ops/gobang_server.service`、`ops/nginx-gobang.conf.example`；HTTP `GET /health` 由 `http_router.hpp` 提供。
+
+## 历史文档说明
+
+`milestone_plan/`、`phase_plan/`（M3 及更早）、`review/`（M3 及更早）、`handover/` 中的部分描述（如「纯 header-only」「`websocket_smoke` 为唯一入口」「独立 timer worker」）反映**当时**实现，已被 2026-06-11 架构重构 supersede。阅读历史文档时以本文件与 `project_plan/current/` 为准。
 
 ## 文档同步规则
 

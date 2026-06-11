@@ -103,6 +103,16 @@ After implementation:
 
 **Real-world example**: 断线超时触发 `on_game_over` 时立即销毁房间，导致对手重连时房间不存在。修复：`on_game_over` 不销毁房间，由 `on_close` 在双方离线后自然清理。
 
+### Checklist: WebSocket++ / Asio 初始化
+
+涉及 `GameController` 定时器或集成测试 server 包装类时：
+
+- [ ] `server.init_asio()` 是否在 `game_ctrl->init(..., &io_service)` **之前**完成？
+- [ ] 回合超时与断线超时是否走 Asio `steady_timer`（需正确 io_service）？
+- [ ] grace pending 是否仍由 500ms `TimerDriver` 调用 `process_timers()`（与 Asio timer 是两套机制）？
+
+→ 详细契约见 [server-init-and-timers.md](../backend/server-init-and-timers.md)
+
 ---
 
 ## Cross-Platform Template Consistency

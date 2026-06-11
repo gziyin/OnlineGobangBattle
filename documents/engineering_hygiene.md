@@ -2,8 +2,9 @@
 
 ## 1. 可提交产物
 
-- 源码：`source/include/`、`source/tests/`、`client/`
+- 源码：`source/include/`、`source/src/`、`source/app/`、`source/tests/`、`client/`
 - 文档：`documents/`、`documents/plan_and_review/`
+- 部署：`ops/`（deploy.sh、systemd、nginx 模板）
 - 构建配置：`source/CMakeLists.txt`、`.gitignore`
 
 ## 2. 不可提交产物

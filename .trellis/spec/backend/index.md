@@ -20,3 +20,5 @@
 | [质量规范](./quality-guidelines.md) | GTest、CTest 标签、线程安全、代码审查 | 已填充 |
 | [日志规范](./logging-guidelines.md) | 异步单例日志器、LOG_* 宏 | 已填充 |
 | [游戏逻辑规范](./game-logic-spec.md) | 落子流程、GameResult 枚举、胜负判定 | 已填充 |
+| [WebSocket 断线 Grace](./websocket-disconnect-grace.md) | pending 断线状态机、grace 与重连 | 已填充 |
+| [服务器初始化与定时器](./server-init-and-timers.md) | init_asio 顺序、Asio 回合 timer、grace driver | 已填充 |

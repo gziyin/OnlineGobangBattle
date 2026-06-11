@@ -60,6 +60,18 @@ sudo chown -R "$(whoami)":"$(whoami)" /srv/online-gobang
 bash ops/deploy.sh main
 ```
 
+部署产物二进制：`/srv/online-gobang/current/source/build/bin/gobang_server`（见 `ops/deploy.sh` 输出）。
+
+首次部署后安装 systemd（可选）：
+
+```bash
+sudo cp ops/gobang_server.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now gobang_server
+```
+
+Nginx 反代示例见 `ops/nginx-gobang.conf.example`。
+
 回滚命令：
 
 ```bash

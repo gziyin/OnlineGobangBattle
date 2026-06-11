@@ -3,7 +3,7 @@
 > **文档日期**: 2026-06-11  
 > **来源计划**: `架构重审与重构执行计划_1c10fb44.plan.md`  
 > **对照文档**: `架构评估与优化建议_6b01d118.plan.md`  
-> **执行状态**: 阶段 A / B / C 核心项已落地；阶段 D 与部分 C2 项待后续
+> **执行状态**: 阶段 A / B / C / D（部分）已落地；C2 续拆 matcher/user_table 待后续
 
 ---
 
@@ -182,7 +182,7 @@ void ensure_timer_worker() {
 
 原 `websocket_smoke.cpp` 承载 9 个全局对象 + HTTP 路由 + 信号处理 + 事件循环。
 
-**已改善**：生产逻辑迁入 `server_main.cpp`；smoke 精简；HTTP 路由独立为 `HttpRouter`。全局组装模式仍存在，多实例/可配置组装留待后续（如引入 `ServerContext` 结构体）。
+**已改善**：生产逻辑迁入 `GobangServer`（`server_context.hpp/cpp`）+ `server_main.cpp`；HTTP 路由独立为 `HttpRouter`；`websocket_smoke` 保留 smoke 验证。
 
 ---
 
@@ -256,11 +256,13 @@ public:
 - 移除：`timer_worker_`、`timer_cv_`、超时队列、`process_pending_timeouts`
 - `server_main.cpp` 仅保留 500ms 驱动用于 **断线 grace**（`flush_pending_disconnects`），不再驱动游戏超时
 
-`init()` 调用示例：
+`init()` 调用示例（**须在 `init_asio()` 之后**）：
 
 ```cpp
-g_game_ctrl->init(&g_room_mgr, &g_online_mgr, &g_conn_mgr, &g_user_table,
-                  &g_server.get_io_service());
+server_.init_asio();
+// ...
+game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, &user_table_,
+                &server_.get_io_service());
 ```
 
 #### C2: 渐进 hpp → cpp 拆分 ⏳ 部分完成
@@ -268,7 +270,7 @@ g_game_ctrl->init(&g_room_mgr, &g_online_mgr, &g_conn_mgr, &g_user_table,
 | 优先级 | 文件 | 状态 |
 |--------|------|------|
 | 1 | `game.hpp` → `game.cpp` | ✅ 已完成，纳入 `gobang_core` |
-| 2 | `websocket_handler.hpp` | ⏳ 待后续 |
+| 2 | `websocket_handler.hpp` | ✅ 已拆分 → `src/websocket_handler.cpp` |
 | 3 | `matcher.hpp` | ⏳ 待后续 |
 | 4 | `user_table.hpp` | ⏳ 待后续 |
 
@@ -320,7 +322,7 @@ flowchart LR
 | B2 生产入口 | 部署与测试分离 | 1 天 | ✅ |
 | B3 HTTP 路由 | 模块化 | 0.5 天 | ✅ |
 | C1 统一定时器 | 简化并发模型 | 1-2 天 | ✅ |
-| C2 hpp/cpp 拆分 | 编译时间下降 30%+ | 2-3 天 | ⏳ 约 25%（仅 game） |
+| C2 hpp/cpp 拆分 | 编译时间下降 30%+ | 2-3 天 | ⏳ 约 50%（game + websocket_handler + server_context；matcher/user_table 待拆） |
 
 ---
 
@@ -330,7 +332,7 @@ flowchart LR
 2. ~~**C2 续拆 websocket_handler**~~：已完成 → `src/websocket_handler.cpp`
 3. ~~**P1-3 ServerContext**~~：已完成 → `GobangServer`（`server_context.hpp/cpp`）
 4. ~~**阶段 D 部分**~~：`GET /health`、`ops/gobang_server.service`、`ops/nginx-gobang.conf.example`
-5. ~~**文档同步**~~：`project_plan_v2.2.md` 服务入口已更新
+5. ~~**文档同步**~~：README、build-guide、project_plan、本文件（2026-06-11 P0/P1 文档对齐）
 
 **下一阶段（M5/M6 剩余）：**
 
@@ -348,15 +350,47 @@ flowchart LR
 - `source/include/message_sender.hpp`
 - `source/include/asio_timer_types.hpp`
 - `source/include/http_router.hpp`
+- `source/include/server_context.hpp`
 - `source/src/game.cpp`
+- `source/src/websocket_handler.cpp`
+- `source/src/server_context.cpp`
 - `source/app/server_main.cpp`
+- `ops/gobang_server.service`
+- `ops/nginx-gobang.conf.example`
 
 **修改：**
 
 - `source/include/game.hpp`（声明头，~86 行）
 - `source/include/connection_manager.hpp`
-- `source/include/websocket_handler.hpp`
+- `source/include/websocket_handler.hpp`（声明）
 - `source/tests/websocket_smoke.cpp`
 - `source/tests/test_game.cpp`
 - `source/tests/test_websocket_game.cpp`
 - `source/CMakeLists.txt`
+
+---
+
+## 十、Post-refactor Bugfix：init_asio 绑定顺序（2026-06-11）
+
+### 现象
+
+Linux `ctest` 中 `WebSocketGameTest.GameTimeout` 失败：`wait_for_event("game.over")` 超时；单元测试 `TurnTimeoutViaAsioTimer` 仍可通过。
+
+### 根因
+
+`GameController::init(..., &server.get_io_service())` 在 `server.init_asio()` **之前**执行。WebSocket++ 在 `init_asio()` 后才创建 `server.run()` 实际使用的 `io_service`，Asio 回合 `steady_timer` 注册在无效实例上，回调永不触发。
+
+### 修复（commit `e42e4e0`）
+
+- `GobangServer::init`：`init_asio()` 后再 `game_ctrl_->init`
+- `LocalWebSocketGameServer`（集成测试夹具）：同上
+- 测试夹具增加与生产一致的 500ms `TimerDriver`（仅驱动 grace `process_timers`，非回合超时）
+
+### 验证
+
+```bash
+./bin/test_websocket_game --gtest_filter=WebSocketGameTest.GameTimeout
+ctest --output-on-failure
+```
+
+可执行契约已写入本机 `.trellis/spec/backend/server-init-and-timers.md`（gitignore，不进仓库）。
