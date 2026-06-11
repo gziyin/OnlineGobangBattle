@@ -4,136 +4,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>在线五子棋 - 登录</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .login-container {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 40px;
-            width: 400px;
-            backdrop-filter: blur(10px);
-        }
-        h1 {
-            color: #fff;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 28px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            color: #ccc;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        input {
-            width: 100%;
-            padding: 12px 15px;
-            border: none;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            font-size: 16px;
-            outline: none;
-        }
-        input:focus {
-            background: rgba(255, 255, 255, 0.15);
-        }
-        input::placeholder {
-            color: #666;
-        }
-        .btn-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-login {
-            background: #4a90d9;
-            color: white;
-        }
-        .btn-login:hover {
-            background: #357abd;
-        }
-        .btn-register {
-            background: #2ecc71;
-            color: white;
-        }
-        .btn-register:hover {
-            background: #27ae60;
-        }
-        .error-msg {
-            color: #e74c3c;
-            text-align: center;
-            margin-top: 15px;
-            min-height: 20px;
-        }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px 25px;
-            border-radius: 10px;
-            color: white;
-            display: none;
-            z-index: 1000;
-        }
-        .notification.success {
-            background: rgba(46, 204, 113, 0.9);
-        }
-        .notification.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-        @keyframes slideIn {
-            from { transform: translateX(100px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-    </style>
+    <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
-    <div class="login-container">
-        <h1>🎮 在线五子棋</h1>
-        <form id="authForm">
-            <div class="form-group">
-                <label for="username">用户名</label>
-                <input type="text" id="username" placeholder="请输入用户名" required>
-            </div>
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input type="password" id="password" placeholder="请输入密码" required>
-            </div>
-            <div class="error-msg" id="errorMsg"></div>
-            <div class="btn-group">
-                <button type="submit" class="btn-login">登录</button>
-                <button type="button" class="btn-register" id="registerBtn">注册</button>
-            </div>
-        </form>
+    <div class="ink-scene" aria-hidden="true">
+        <svg class="ink-scene__taiji" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="taijiGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#f5f0e8" stop-opacity="0.08"/>
+                    <stop offset="100%" stop-color="#f5f0e8" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <circle cx="100" cy="100" r="98" fill="url(#taijiGlow)"/>
+            <circle cx="100" cy="100" r="90" fill="#f5f0e8" opacity="0.06"/>
+            <path d="M100 10 A90 90 0 1 1 100 190 A45 45 0 1 0 100 100 A45 45 0 1 1 100 10 Z" fill="#f5f0e8" opacity="0.12"/>
+            <circle cx="100" cy="55" r="10" fill="#1a1814" opacity="0.5"/>
+            <circle cx="100" cy="145" r="10" fill="#f5f0e8" opacity="0.35"/>
+        </svg>
+        <svg class="ink-scene__mountains" viewBox="0 0 1440 320" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="mountainFar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3d3830" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#1a1814" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="mountainNear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6b6358" stop-opacity="0.55"/>
+                    <stop offset="100%" stop-color="#1a1814" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <path d="M0,320 L0,200 Q180,120 360,170 Q540,80 720,150 Q900,60 1080,130 Q1260,90 1440,160 L1440,320 Z" fill="url(#mountainFar)"/>
+            <path d="M0,320 L0,240 Q240,180 480,220 Q720,140 960,200 Q1200,160 1440,230 L1440,320 Z" fill="url(#mountainNear)"/>
+        </svg>
+        <svg class="ink-scene__brush" viewBox="0 0 600 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,50 Q80,10 200,40 Q320,70 420,25 Q520,5 600,35 L600,80 L0,80 Z" fill="#f5f0e8" opacity="0.04"/>
+        </svg>
+        <p class="ink-scene__verse">道生一，一生二，二生三，三生万物</p>
     </div>
-    <div class="notification" id="notification"></div>
+
+    <main class="login-page">
+        <article class="scroll">
+            <div class="scroll__roller scroll__roller--top" aria-hidden="true">
+                <span class="scroll__knob"></span>
+                <span class="scroll__bar"></span>
+                <span class="scroll__knob"></span>
+            </div>
+            <div class="scroll__body">
+                <div class="scroll__content">
+            <header class="login-brand">
+                <div class="login-brand__emblem">
+                    <svg class="login-brand__taiji" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
+                        <path d="M32 2 A30 30 0 1 1 32 62 A15 15 0 1 0 32 32 A15 15 0 1 1 32 2 Z" fill="currentColor"/>
+                        <circle cx="32" cy="17" r="4" fill="#faf7f2"/>
+                        <circle cx="32" cy="47" r="4" fill="currentColor"/>
+                    </svg>
+                    <div class="dao-seal"><span>弈</span></div>
+                </div>
+                <h1>在线五子棋</h1>
+                <p class="login-brand__tagline">知白守黑 · 道法自然</p>
+                <p class="login-brand__sub">水墨对弈，即时匹配</p>
+            </header>
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" placeholder="请输入密码" autocomplete="current-password" required>
+                </div>
+                <div class="error-msg" id="errorMsg" role="alert" aria-live="polite"></div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-login">入 弈</button>
+                    <button type="button" class="btn btn-register" id="registerBtn">注 册</button>
+                </div>
+            </form>
+            <footer class="scroll__footer" aria-hidden="true">
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+                <span class="bagua-dot"></span>
+            </footer>
+                </div>
+            </div>
+            <div class="scroll__roller scroll__roller--bottom" aria-hidden="true">
+                <span class="scroll__knob"></span>
+                <span class="scroll__bar"></span>
+                <span class="scroll__knob"></span>
+            </div>
+        </article>
+        <p class="login-page__vertical" aria-hidden="true">玄</p>
+    </main>
+    <div class="notification" id="notification" role="status" aria-live="polite"></div>
 
     <script src="js/websocket.js"></script>
     <script>

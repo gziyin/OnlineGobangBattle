@@ -1,0 +1,55 @@
+/**
+ * Design tokens — Online Gobang Battle
+ * Source of truth: DESIGN.md (impeccable)
+ */
+:root {
+    /* Colors */
+    --color-ink-deep: #1a1814;
+    --color-ink-mid: #3d3830;
+    --color-ink-wash: #6b6358;
+    --color-paper: #f5f0e8;
+    --color-paper-muted: #e8e0d4;
+    --color-cinnabar: #c23b22;
+    --color-cinnabar-deep: #8f2a18;
+    --color-jade: #2d6a4f;
+    --color-jade-soft: #40916c;
+    --color-gold-mist: #c9a227;
+    --color-surface-elevated: #faf7f2;
+    --color-text-primary: #1a1814;
+    --color-text-secondary: #5c5348;
+    --color-text-on-ink: #f5f0e8;
+    --color-error: #c23b22;
+
+    /* Typography */
+    --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+    --font-body: "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    --font-size-body: 1rem;
+    --font-size-label: 0.875rem;
+    --font-size-display: clamp(1.75rem, 4vw, 2.25rem);
+    --line-height-body: 1.6;
+    --line-height-display: 1.2;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 40px;
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+
+    /* Elevation */
+    --shadow-card: 0 4px 24px rgba(26, 24, 20, 0.08);
+    --shadow-card-hover: 0 8px 32px rgba(26, 24, 20, 0.12);
+
+    /* Motion */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 220ms;
+
+    /* Z-index scale */
+    --z-toast: 500;
+}

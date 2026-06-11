@@ -39,6 +39,14 @@ These guides help you **ask the right questions before coding**.
 
 → Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md)
 
+### When to Work on Frontend UI
+
+- [ ] 修改 `client/` 页面、样式或登录/大厅/房间视觉
+- [ ] 新增 CSS token 或书卷/水墨组件
+- [ ] 前端展示依赖 WebSocket/API 字段
+
+→ 先读 [frontend/index.md](../frontend/index.md)，再读 [PRODUCT.md](../../../PRODUCT.md) 与 [DESIGN.md](../../../DESIGN.md)
+
 ### When to Think About Code Reuse
 
 - [ ] You're writing similar code to something that exists

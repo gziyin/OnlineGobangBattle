@@ -1,0 +1,533 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap');
+@import url('tokens.css');
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+    color: var(--color-text-primary);
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 0%, rgba(74, 102, 112, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 60% at 100% 100%, rgba(194, 59, 34, 0.1) 0%, transparent 50%),
+        linear-gradient(165deg, #0a0908 0%, #1a1814 45%, #12100e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-lg);
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* ── Ink scene (道家山水 + 太极) ── */
+.ink-scene {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.ink-scene__taiji {
+    position: absolute;
+    width: min(520px, 90vw);
+    height: min(520px, 90vw);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+    opacity: 1;
+    animation: taiji-breathe 12s ease-in-out infinite;
+}
+
+.ink-scene__mountains {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: min(42vh, 320px);
+}
+
+.ink-scene__brush {
+    position: absolute;
+    top: 8%;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    opacity: 0.9;
+}
+
+.ink-scene__verse {
+    position: absolute;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-display);
+    font-size: clamp(0.75rem, 2vw, 0.9rem);
+    letter-spacing: 0.35em;
+    color: rgba(245, 240, 232, 0.22);
+    white-space: nowrap;
+    writing-mode: horizontal-tb;
+}
+
+@keyframes taiji-breathe {
+    0%, 100% { transform: translate(-50%, -55%) scale(1); opacity: 0.85; }
+    50% { transform: translate(-50%, -55%) scale(1.04); opacity: 1; }
+}
+
+@keyframes mist-drift {
+    0%, 100% { opacity: 0.5; transform: translateY(0); }
+    50% { opacity: 0.75; transform: translateY(-6px); }
+}
+
+/* ── Login layout ── */
+.login-page {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: center;
+}
+
+.login-page__vertical {
+    position: absolute;
+    left: -2.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 4.5rem);
+    font-weight: 700;
+    color: rgba(245, 240, 232, 0.07);
+    writing-mode: vertical-rl;
+    letter-spacing: 0.2em;
+    user-select: none;
+}
+
+/* ── Ancient scroll (书卷) — pure CSS, no raster asset ── */
+.scroll {
+    width: min(380px, 90vw);
+    filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.5))
+            drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3));
+}
+
+.scroll:focus-within {
+    filter: drop-shadow(0 32px 56px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 32px rgba(194, 59, 34, 0.05));
+}
+
+/* 天杆 / 地杆 */
+.scroll__roller {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 2px;
+    position: relative;
+    z-index: 2;
+}
+
+.scroll__roller--top {
+    margin-bottom: -3px;
+}
+
+.scroll__roller--bottom {
+    margin-top: -3px;
+    opacity: 0.92;
+    transform: scale(0.96);
+}
+
+.scroll__knob {
+    flex-shrink: 0;
+    width: 13px;
+    height: 26px;
+    border-radius: 45% 45% 50% 50%;
+    background: linear-gradient(
+        165deg,
+        #d8d4cc 0%,
+        #a8a49a 35%,
+        #6e6a62 65%,
+        #9a968e 100%
+    );
+    box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.35),
+        0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+.scroll__bar {
+    flex: 1;
+    height: 16px;
+    border-radius: 8px;
+    background: linear-gradient(
+        180deg,
+        #ece8e0 0%,
+        #b8b4ac 30%,
+        #7a7670 55%,
+        #a09c94 80%,
+        #c8c4bc 100%
+    );
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* 宣纸幅面 */
+.scroll__body {
+    position: relative;
+    min-height: 500px;
+    overflow: hidden;
+    background-color: #d8d0c4;
+    background-image:
+        radial-gradient(ellipse 55% 50% at 50% 38%, #faf6ee 0%, transparent 70%),
+        radial-gradient(ellipse 100% 90% at 50% 50%, #ebe4d8 20%, #cfc6b8 55%, #8a8074 100%),
+        repeating-linear-gradient(
+            93deg,
+            transparent 0px,
+            transparent 3px,
+            rgba(26, 24, 20, 0.018) 3px,
+            rgba(26, 24, 20, 0.018) 4px
+        ),
+        repeating-linear-gradient(
+            177deg,
+            transparent 0px,
+            transparent 5px,
+            rgba(26, 24, 20, 0.012) 5px,
+            rgba(26, 24, 20, 0.012) 6px
+        );
+    box-shadow:
+        inset 0 0 60px rgba(26, 24, 20, 0.28),
+        inset 0 0 120px rgba(26, 24, 20, 0.18),
+        inset 24px 0 40px rgba(26, 24, 20, 0.12),
+        inset -24px 0 40px rgba(26, 24, 20, 0.12);
+    clip-path: polygon(
+        1% 0%, 99% 0%,
+        100% 1%, 99.5% 98%,
+        98% 100%, 2% 100%,
+        0.5% 98%, 0% 1%
+    );
+}
+
+/* 水墨晕染边沿 */
+.scroll__body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 45% 30% at 0% 50%, rgba(26, 24, 20, 0.35) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 30% at 100% 50%, rgba(26, 24, 20, 0.35) 0%, transparent 70%),
+        radial-gradient(ellipse 80% 25% at 50% 100%, rgba(26, 24, 20, 0.4) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 20% at 50% 0%, rgba(26, 24, 20, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.scroll__content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 32px 24px;
+    z-index: 1;
+    min-height: 500px;
+}
+
+/* ── Brand ── */
+.login-brand {
+    text-align: center;
+    margin-bottom: var(--space-md);
+    flex-shrink: 0;
+}
+
+.login-brand__emblem {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.login-brand__taiji {
+    width: 44px;
+    height: 44px;
+    color: var(--color-ink-deep);
+}
+
+.dao-seal {
+    width: 38px;
+    height: 38px;
+    border: 2.5px solid var(--color-cinnabar);
+    color: var(--color-cinnabar);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-4deg);
+    box-shadow: inset 0 0 0 1px rgba(194, 59, 34, 0.3);
+}
+
+.dao-seal span {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.login-brand h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.65rem, 4.5vw, 2.15rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.1em;
+    color: var(--color-ink-deep);
+    text-wrap: balance;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.login-brand__tagline {
+    margin-top: var(--space-sm);
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-ink-mid);
+    letter-spacing: 0.2em;
+}
+
+.login-brand__sub {
+    margin-top: var(--space-xs);
+    font-size: var(--font-size-label);
+    color: var(--color-text-secondary);
+    letter-spacing: 0.12em;
+}
+
+/* ── Form ── */
+.form-group {
+    margin-bottom: var(--space-md);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-size: var(--font-size-label);
+    font-weight: 500;
+    color: var(--color-ink-mid);
+    letter-spacing: 0.08em;
+}
+
+#authForm {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid rgba(61, 56, 48, 0.22);
+    border-radius: 2px;
+    background: rgba(250, 247, 242, 0.55);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    outline: none;
+    transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out);
+}
+
+.form-group input::placeholder {
+    color: var(--color-ink-wash);
+}
+
+.form-group input:hover {
+    border-color: rgba(61, 56, 48, 0.4);
+    background: rgba(250, 247, 242, 0.75);
+}
+
+.form-group input:focus {
+    border-color: var(--color-ink-mid);
+    background: rgba(255, 253, 248, 0.92);
+    box-shadow: 0 0 0 2px rgba(26, 24, 20, 0.06);
+}
+
+.error-msg {
+    min-height: 1.25rem;
+    margin-top: var(--space-sm);
+    font-size: var(--font-size-label);
+    color: var(--color-error);
+    text-align: center;
+}
+
+.btn-group {
+    display: flex;
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+}
+
+.btn {
+    flex: 1;
+    min-height: 44px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--color-cinnabar);
+    outline-offset: 2px;
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.btn-login {
+    background: var(--color-cinnabar);
+    color: var(--color-text-on-ink);
+    box-shadow: 0 4px 16px rgba(194, 59, 34, 0.35);
+}
+
+.btn-login:hover {
+    background: var(--color-cinnabar-deep);
+    box-shadow: 0 6px 20px rgba(194, 59, 34, 0.45);
+}
+
+.btn-register {
+    background: transparent;
+    color: var(--color-ink-deep);
+    border: 1.5px solid var(--color-ink-mid);
+    letter-spacing: 0.15em;
+}
+
+.btn-register:hover {
+    border-color: var(--color-ink-deep);
+    background: rgba(26, 24, 20, 0.04);
+}
+
+/* ── 八卦装饰点 ── */
+.scroll__footer {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    flex-shrink: 0;
+}
+
+.bagua-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-ink-wash);
+    opacity: 0.35;
+}
+
+.bagua-dot:nth-child(odd) {
+    background: var(--color-ink-deep);
+    opacity: 0.5;
+}
+
+/* ── Toast ── */
+.notification {
+    position: fixed;
+    top: var(--space-lg);
+    right: var(--space-lg);
+    max-width: min(360px, calc(100vw - 32px));
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--color-ink-deep);
+    color: var(--color-text-on-ink);
+    font-size: var(--font-size-label);
+    display: none;
+    z-index: var(--z-toast);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border-top: 3px solid var(--color-cinnabar);
+}
+
+.notification.success {
+    background: var(--color-jade);
+    border-top-color: var(--color-gold-mist);
+}
+
+.notification.show {
+    display: block;
+    animation: toast-in var(--duration-normal) var(--ease-out);
+}
+
+@keyframes toast-in {
+    from {
+        transform: translateX(24px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ink-scene__taiji {
+        animation: none;
+    }
+
+    .btn,
+    .scroll,
+    .form-group input {
+        transition: none;
+    }
+
+    .notification.show {
+        animation: none;
+    }
+
+    .btn:active:not(:disabled) {
+        transform: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .login-page__vertical,
+    .ink-scene__verse {
+        display: none;
+    }
+
+    .scroll__content {
+        padding: 20px 22px 18px;
+        min-height: 460px;
+    }
+
+    .scroll__body {
+        min-height: 460px;
+    }
+
+    .login-brand h1 {
+        letter-spacing: 0.06em;
+    }
+
+    .login-brand__tagline {
+        letter-spacing: 0.15em;
+        font-size: 0.9rem;
+    }
+
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .login-brand__emblem {
+        gap: var(--space-sm);
+    }
+}
