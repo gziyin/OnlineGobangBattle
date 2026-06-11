@@ -3,7 +3,7 @@
 > **文档日期**: 2026-06-11  
 > **来源计划**: `架构重审与重构执行计划_1c10fb44.plan.md`  
 > **对照文档**: `架构评估与优化建议_6b01d118.plan.md`  
-> **执行状态**: 阶段 A / B / C / D（部分）已落地；C2 续拆 matcher/user_table 待后续
+> **执行状态**: 阶段 A / B / C / D（部分）已落地；C2 hpp/cpp 拆分已全部完成
 
 ---
 
@@ -70,7 +70,7 @@ B3 + C2 → D(部署硬化，未执行)
 | B2 gobang_server 生产入口 | pending → | **已完成** |
 | B3 HTTP 路由模块化 | pending → | **已完成** |
 | C1 统一定时器到 Asio | pending → | **已完成** |
-| C2 hpp/cpp 渐进拆分 | pending → | **部分完成**（仅 `game`；`websocket_handler` / `matcher` / `user_table` 待后续） |
+| C2 hpp/cpp 渐进拆分 | pending → | **已完成**（`game` / `websocket_handler` / `matcher` / `user_table` 均已拆分至 `gobang_core`） |
 | M4 E2E 验收 | pending | **未执行**（需 Linux 环境 + 浏览器联调） |
 | M6 部署硬化（阶段 D） | pending | **未执行** |
 
@@ -173,10 +173,10 @@ void ensure_timer_worker() {
 
 | 文件 | 行数 | 拆分状态 |
 |------|------|----------|
-| `user_table.hpp` | 760 | 待拆分 |
+| `user_table.hpp` | 760 → ~106 | **已拆分** → `src/user_table.cpp` |
 | `game.hpp` | 712 → ~86 | **已拆分** → `src/game.cpp` |
-| `websocket_handler.hpp` | 683 | 待拆分 |
-| `matcher.hpp` | 413 | 待拆分 |
+| `websocket_handler.hpp` | 683 → ~145 | **已拆分** → `src/websocket_handler.cpp` |
+| `matcher.hpp` | 413 → ~93 | **已拆分** → `src/matcher.cpp` |
 
 ### P1-3: 全局对象组装方式
 
@@ -265,14 +265,14 @@ game_ctrl_->init(&room_mgr_, &online_mgr_, &conn_mgr_, &user_table_,
                 &server_.get_io_service());
 ```
 
-#### C2: 渐进 hpp → cpp 拆分 ⏳ 部分完成
+#### C2: 渐进 hpp → cpp 拆分 ✅
 
 | 优先级 | 文件 | 状态 |
 |--------|------|------|
 | 1 | `game.hpp` → `game.cpp` | ✅ 已完成，纳入 `gobang_core` |
 | 2 | `websocket_handler.hpp` | ✅ 已拆分 → `src/websocket_handler.cpp` |
-| 3 | `matcher.hpp` | ⏳ 待后续 |
-| 4 | `user_table.hpp` | ⏳ 待后续 |
+| 3 | `matcher.hpp` | ✅ 已拆分 → `src/matcher.cpp` |
+| 4 | `user_table.hpp` | ✅ 已拆分 → `src/user_table.cpp` |
 
 保留 header-only：`online.hpp`、`matcher_interface.hpp`、`connection_manager.hpp`（体量小，拆分收益低）。
 
@@ -322,7 +322,7 @@ flowchart LR
 | B2 生产入口 | 部署与测试分离 | 1 天 | ✅ |
 | B3 HTTP 路由 | 模块化 | 0.5 天 | ✅ |
 | C1 统一定时器 | 简化并发模型 | 1-2 天 | ✅ |
-| C2 hpp/cpp 拆分 | 编译时间下降 30%+ | 2-3 天 | ⏳ 约 50%（game + websocket_handler + server_context；matcher/user_table 待拆） |
+| C2 hpp/cpp 拆分 | 编译时间下降 30%+ | 2-3 天 | ✅ 已完成（game / websocket_handler / server_context / matcher / user_table） |
 
 ---
 
@@ -336,7 +336,7 @@ flowchart LR
 
 **下一阶段（M5/M6 剩余）：**
 
-1. **C2 续拆**：`matcher.hpp`、`user_table.hpp` → cpp
+1. ~~**C2 续拆**：`matcher.hpp`、`user_table.hpp` → cpp~~：已完成
 2. **阶段 D 深化**：CORS Origin 白名单（配置化）、前端 `config.js` 外置 WS_URL
 3. **M5 聊天功能**：`game.chat` 事件 + 敏感词过滤
 4. **OpenAPI 文档**与部署手册
@@ -354,6 +354,8 @@ flowchart LR
 - `source/src/game.cpp`
 - `source/src/websocket_handler.cpp`
 - `source/src/server_context.cpp`
+- `source/src/matcher.cpp`
+- `source/src/user_table.cpp`
 - `source/app/server_main.cpp`
 - `ops/gobang_server.service`
 - `ops/nginx-gobang.conf.example`
@@ -363,6 +365,8 @@ flowchart LR
 - `source/include/game.hpp`（声明头，~86 行）
 - `source/include/connection_manager.hpp`
 - `source/include/websocket_handler.hpp`（声明）
+- `source/include/matcher.hpp`（声明，~93 行）
+- `source/include/user_table.hpp`（声明，~106 行）
 - `source/tests/websocket_smoke.cpp`
 - `source/tests/test_game.cpp`
 - `source/tests/test_websocket_game.cpp`

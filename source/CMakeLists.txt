@@ -117,9 +117,12 @@ add_library(gobang_core STATIC
     src/game.cpp
     src/websocket_handler.cpp
     src/server_context.cpp
+    src/matcher.cpp
+    src/user_table.cpp
 )
 target_link_libraries(gobang_core PUBLIC
     ${JSONCPP_LIBRARIES}
+    ${MYSQL_LIBRARIES}
     Threads::Threads
 )
 
