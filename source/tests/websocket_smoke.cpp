@@ -3,129 +3,55 @@
  * @brief M3 WebSocket 接线层最小 smoke 测试（编译检查 + 端口绑定验证）
  */
 
+#include <csignal>
+#include <cstdlib>
 #include <iostream>
-#include <memory>
-#include <signal.h>
 
 #include "config.h"
-#include "connection_manager.hpp"
-#include "matcher.hpp"
-#include "online.hpp"
-#include "websocket_handler.hpp"
 #include "logger.hpp"
-#include "db.hpp"
-#include "user_table.hpp"
-#include "util.hpp"
-#include "game.hpp"
-#include "room.hpp"
-#include "http_router.hpp"
-
-using websocketpp::connection_hdl;
-
-extern gobang::WebsocketServer g_server;
+#include "server_context.hpp"
 
 namespace {
 
-gobang::ConnectionManager g_conn_mgr;
-gobang::OnlineManager g_online_mgr;
-gobang::Matcher g_matcher;
-gobang::WebSocketHandler g_ws_handler;
-gobang::DBPool g_db_pool;
-gobang::UserTable g_user_table;
-gobang::RoomManager g_room_mgr;
-gobang::HttpRouter g_http_router;
-std::shared_ptr<gobang::GameController> g_game_ctrl;
-
-bool is_allowed_websocket_resource(const std::string& resource) {
-    size_t end = resource.find_first_of("?#");
-    std::string path = resource.substr(0, end);
-    return path == "/ws" || path == "/ws/";
-}
+gobang::GobangServer* g_app = nullptr;
 
 void on_signal(int sig) {
     (void)sig;
-    g_matcher.stop();
-    g_server.stop();
-    exit(0);
+    if (g_app) {
+        g_app->shutdown();
+    }
+    std::exit(0);
 }
 
 } // namespace
-
-gobang::WebsocketServer g_server;
 
 int main() {
     std::cout << "=== M3 WebSocket Smoke Test ===" << std::endl;
 
     gobang::Logger::instance().init("websocket_smoke.log");
 
-    try {
-        gobang::util::Config cfg = gobang::util::load_config(GOBANG_CONFIG_PATH);
-        gobang::util::validate_config(cfg);
-        g_db_pool.init(cfg);
-        g_user_table.init(&g_db_pool);
-    } catch (const std::exception& e) {
-        std::cerr << "DB init failed: " << e.what() << std::endl;
+    gobang::GobangServer app(gobang::GobangServer::RunMode::Smoke);
+    g_app = &app;
+
+    if (!app.init(GOBANG_CONFIG_PATH)) {
+        std::cerr << "Smoke init failed." << std::endl;
         return 1;
     }
 
-    g_conn_mgr.init(&g_server);
-    g_matcher.init(&g_online_mgr);
-    g_matcher.start();
-    g_http_router.init(&g_user_table, &g_online_mgr);
-
-    g_game_ctrl = gobang::GameController::create();
-    g_game_ctrl->init(&g_room_mgr, &g_online_mgr, &g_conn_mgr, &g_user_table,
-                      &g_server.get_io_service());
-
-    g_ws_handler.init(&g_conn_mgr, &g_online_mgr, &g_matcher, &g_server,
-                      g_game_ctrl.get());
-
-    g_server.init_asio();
-    g_server.set_reuse_addr(true);
-    g_server.clear_access_channels(websocketpp::log::alevel::all);
-    g_server.clear_error_channels(websocketpp::log::elevel::all);
-
-    g_server.set_validate_handler([](connection_hdl hdl) {
-        auto con = g_server.get_con_from_hdl(hdl);
-        return is_allowed_websocket_resource(con->get_resource());
-    });
-
-    g_server.set_http_handler([](connection_hdl hdl) {
-        g_http_router.handle_request(g_server, hdl);
-    });
-
-    g_server.set_open_handler([&](connection_hdl hdl) {
-        g_ws_handler.on_open(hdl);
-    });
-
-    g_server.set_close_handler([&](connection_hdl hdl) {
-        g_ws_handler.on_close(hdl);
-    });
-
-    g_server.set_message_handler(
-        [&](connection_hdl hdl, gobang::WebsocketServer::message_ptr msg) {
-            g_ws_handler.on_message(hdl, msg->get_payload());
-        });
-
-    try {
-        websocketpp::lib::asio::ip::tcp::endpoint endpoint(
-            websocketpp::lib::asio::ip::address_v4::any(), 8080);
-        g_server.listen(endpoint);
-        std::cout << "Listening on 0.0.0.0:8080 (IPv4)..." << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Listen failed: " << e.what() << std::endl;
-        std::cerr << "Port 8080 may be in use. Smoke test passes compilation check."
-                  << std::endl;
-        g_matcher.stop();
+    app.listen_and_accept();
+    if (!app.is_listening()) {
+        std::cerr << "Listen failed on port " << app.config().server_port << std::endl;
+        std::cerr << "Port may be in use. Smoke test passes compilation check." << std::endl;
+        app.shutdown();
         return 0;
     }
 
-    signal(SIGINT, on_signal);
-    g_server.start_accept();
-
+    std::cout << "Listening on 0.0.0.0:" << app.config().server_port << std::endl;
     std::cout << "Smoke test: all components assembled successfully." << std::endl;
-    g_server.run();
 
-    g_matcher.stop();
+    std::signal(SIGINT, on_signal);
+    app.run();
+
+    app.shutdown();
     return 0;
 }

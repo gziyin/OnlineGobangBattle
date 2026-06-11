@@ -326,11 +326,18 @@ flowchart LR
 
 ## 八、后续待办
 
-1. **Linux 回归**：`test_game`、`test_websocket_game`、`websocket_smoke` + 浏览器 M4 E2E
-2. **C2 续拆**：`websocket_handler` → `websocket_handler.cpp`（次优先）
-3. **P1-3 深化**：将全局对象封装为 `ServerContext`，支持测试夹具多配置组装
-4. **阶段 D**：部署硬化与安全项（M6）
-5. **文档同步**：更新 `project_plan_v2.2.md` 中「服务入口」描述（`gobang_server` 已可用）
+1. ~~**Linux 回归**~~：已通过（2026-06-11 用户确认全量测试通过）
+2. ~~**C2 续拆 websocket_handler**~~：已完成 → `src/websocket_handler.cpp`
+3. ~~**P1-3 ServerContext**~~：已完成 → `GobangServer`（`server_context.hpp/cpp`）
+4. ~~**阶段 D 部分**~~：`GET /health`、`ops/gobang_server.service`、`ops/nginx-gobang.conf.example`
+5. ~~**文档同步**~~：`project_plan_v2.2.md` 服务入口已更新
+
+**下一阶段（M5/M6 剩余）：**
+
+1. **C2 续拆**：`matcher.hpp`、`user_table.hpp` → cpp
+2. **阶段 D 深化**：CORS Origin 白名单（配置化）、前端 `config.js` 外置 WS_URL
+3. **M5 聊天功能**：`game.chat` 事件 + 敏感词过滤
+4. **OpenAPI 文档**与部署手册
 
 ---
 

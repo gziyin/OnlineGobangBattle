@@ -44,3 +44,5 @@ ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
 echo "[deploy] done: $RELEASE_DIR"
 echo "[deploy] current -> $(readlink -f "$CURRENT_LINK")"
+echo "[deploy] binary: $CURRENT_LINK/source/build/bin/gobang_server"
+echo "[deploy] hint: sudo systemctl restart gobang_server  # after installing ops/gobang_server.service"

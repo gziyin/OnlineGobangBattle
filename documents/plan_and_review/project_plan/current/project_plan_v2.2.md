@@ -29,7 +29,7 @@
 | 前端 | HTML5/CSS3/JavaScript (ES6+) |
 | 开发环境 | Rocky Linux 9 (开发) / Ubuntu 22.04 LTS (部署) |
 | 构建工具 | CMake 3.10+、Google Test、CTest |
-| 服务入口 | `source/tests/websocket_smoke.cpp`（联调）；生产级 `main` 待 M6 |
+| 服务入口 | `source/app/server_main.cpp` → `gobang_server`（生产）；`websocket_smoke`（smoke） |
 | API文档 | OpenAPI 3.0（规划，M6 待编写） |
 
 ---

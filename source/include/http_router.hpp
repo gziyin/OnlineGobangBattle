@@ -14,9 +14,11 @@ namespace gobang {
 
 class HttpRouter {
 public:
-    void init(UserTable* user_table, OnlineManager* online_mgr) {
+    void init(UserTable* user_table, OnlineManager* online_mgr,
+              ConnectionManager* conn_mgr = nullptr) {
         _user_table = user_table;
         _online_mgr = online_mgr;
+        _conn_mgr = conn_mgr;
     }
 
     void handle_request(WebsocketServer& server, WebsocketConnectionHdl hdl) {
@@ -26,10 +28,24 @@ public:
 
         if (method == "OPTIONS") {
             con->append_header("Access-Control-Allow-Origin", "*");
-            con->append_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+            con->append_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             con->append_header("Access-Control-Allow-Headers",
                                "Content-Type, Authorization");
             con->set_status(websocketpp::http::status_code::ok);
+            return;
+        }
+
+        if (method == "GET" && resource == "/health") {
+            Json::Value resp;
+            resp["status"] = "ok";
+            resp["service"] = "online_gobang";
+            if (_conn_mgr) {
+                resp["connections"] = static_cast<Json::UInt64>(_conn_mgr->connection_count());
+            }
+            con->append_header("Access-Control-Allow-Origin", "*");
+            con->append_header("Content-Type", "application/json; charset=utf-8");
+            con->set_status(websocketpp::http::status_code::ok);
+            con->set_body(util::json_to_str(resp));
             return;
         }
 
@@ -80,6 +96,7 @@ private:
 
     UserTable* _user_table = nullptr;
     OnlineManager* _online_mgr = nullptr;
+    ConnectionManager* _conn_mgr = nullptr;
 };
 
 } // namespace gobang

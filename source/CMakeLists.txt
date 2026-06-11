@@ -113,7 +113,11 @@ endif()
 include_directories(${MYSQL_INCLUDE_DIRS})
 link_directories(${MYSQL_LIBRARY_DIRS})
 
-add_library(gobang_core STATIC src/game.cpp)
+add_library(gobang_core STATIC
+    src/game.cpp
+    src/websocket_handler.cpp
+    src/server_context.cpp
+)
 target_link_libraries(gobang_core PUBLIC
     ${JSONCPP_LIBRARIES}
     Threads::Threads

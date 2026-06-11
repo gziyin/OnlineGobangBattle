@@ -1,0 +1,20 @@
+[Unit]
+Description=Online Gobang Battle Server
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=gobang
+Group=gobang
+WorkingDirectory=/srv/online-gobang/current/source
+ExecStart=/srv/online-gobang/current/source/build/bin/gobang_server
+Restart=on-failure
+RestartSec=5
+Environment=GOBANG_CONFIG_PATH=/srv/online-gobang/current/source/config/server.conf
+
+# 安全加固：限制可写目录
+ReadWritePaths=/srv/online-gobang/current/source/logs
+
+[Install]
+WantedBy=multi-user.target
