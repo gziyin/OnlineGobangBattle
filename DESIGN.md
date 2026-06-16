@@ -71,6 +71,10 @@ components:
     textColor: "{colors.text-primary}"
     rounded: "{rounded.lg}"
     padding: "20px 24px"
+  realm-wallpaper:
+    backgroundImage: "assets/{realm-file}"
+    veil: "linear-gradient 玄墨遮罩"
+    picker: "realm-picker + realm-card"
   board-frame:
     backgroundColor: "{colors.board-wood}"
     textColor: "{colors.board-line}"
@@ -78,7 +82,7 @@ components:
     padding: "10px"
 ---
 
-<!-- SEED: 基于 init 访谈生成。login 已落地；执行契约见 .trellis/spec/frontend/。hall/room 迁移后请用 `/impeccable document` 扫描回写 token。 -->
+<!-- SEED: 基于 init 访谈生成。login / hall / room 已落地 token 化；执行契约见 .trellis/spec/frontend/。 -->
 
 ## Overview
 
@@ -132,6 +136,14 @@ components:
 
 - 用户信息区：横向卡片，头像用墨色圆形 + 金字段位。
 - 匹配按钮：Primary + 轻微墨晕 hover（CSS `box-shadow` 扩散，非 bounce）。
+- **五境壁纸**：全屏竖版封面 + 玄墨 veil；`.realm-picker` 切换，默认「雨天棋」。
+
+**静态资产**（`client/assets/`）：
+
+| 文件 | 用途 |
+|------|------|
+| `1雨天棋.png` … `5天地棋.png` | 大厅可切换壁纸 |
+| `scroll-paper.png` | 保留作书卷/宣纸参考；login 仍用纯 CSS 书卷，禁止直铺 PNG |
 
 ### 房间（room）
 

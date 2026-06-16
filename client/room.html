@@ -7,46 +7,47 @@
     <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
-    <div class="game-container">
-        <div class="player-info opponent">
+    <main class="game-container">
+        <section class="player-info opponent" aria-label="对手信息">
             <div>
                 <div class="label">对手</div>
                 <span class="username">对手</span>
             </div>
             <span class="score">分数: --</span>
-        </div>
+        </section>
 
-        <div class="board-container">
-            <canvas id="board" width="600" height="600"></canvas>
-        </div>
+        <section class="board-container" aria-label="棋盘">
+            <canvas id="board" width="600" height="600" role="img" aria-label="五子棋棋盘"></canvas>
+        </section>
 
-        <div class="player-info self">
+        <section class="player-info self" aria-label="我方信息">
             <div>
                 <div class="label">我方</div>
                 <span class="username">我</span>
             </div>
             <span class="score">分数: --</span>
-        </div>
+        </section>
 
-        <div class="game-status">
+        <section class="game-status" aria-live="polite">
             <span class="turn-indicator">连接中...</span>
             <span class="timer"></span>
-        </div>
+        </section>
 
         <div class="game-actions">
-            <button id="btn-giveup" class="btn-danger" disabled>认输</button>
+            <button type="button" id="btn-giveup" class="btn-danger" disabled>认输</button>
         </div>
 
-        <div id="game-over-modal" class="modal hidden">
+        <div id="game-over-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
             <div class="modal-content">
-                <h2 class="result-text">游戏结束</h2>
+                <h2 class="result-text" id="game-over-title">游戏结束</h2>
+                <p class="game-over-tagline">棋局既终，各归其位</p>
                 <p class="score-change"></p>
-                <button id="btn-back-hall">返回大厅</button>
+                <button type="button" id="btn-back-hall">返回大厅</button>
             </div>
         </div>
-    </div>
+    </main>
 
-    <div class="notification" id="notification"></div>
+    <div class="notification" id="notification" role="status" aria-live="polite"></div>
     <div class="connection-status connecting" id="connectionStatus">正在连接...</div>
 
     <script src="js/websocket.js"></script>

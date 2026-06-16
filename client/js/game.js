@@ -35,6 +35,11 @@ const elements = {
     connectionStatus: document.getElementById('connectionStatus')
 };
 
+function getCssColor(varName, fallback) {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return val || fallback;
+}
+
 function colorToBoardValue(color) {
     return color === 'black' ? 1 : 2;
 }
@@ -95,9 +100,10 @@ function drawBoard() {
     const canvas = document.getElementById('board');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const boardLine = getCssColor('--color-board-line', '#5c4a32');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = boardLine;
     ctx.lineWidth = 1;
     for (let i = 0; i < BOARD_SIZE; i++) {
         ctx.beginPath();
@@ -112,7 +118,7 @@ function drawBoard() {
     }
 
     const starPoints = [[3, 3], [3, 11], [7, 7], [11, 3], [11, 11]];
-    ctx.fillStyle = '#333';
+    ctx.fillStyle = boardLine;
     starPoints.forEach(([r, c]) => {
         ctx.beginPath();
         ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, 4, 0, Math.PI * 2);
@@ -145,7 +151,7 @@ function drawPiece(row, col, color, markLast = true) {
     ctx.arc(x, y, 18, 0, Math.PI * 2);
     ctx.fillStyle = color === 'black' ? '#000' : '#fff';
     ctx.fill();
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = getCssColor('--color-board-line', '#5c4a32');
     ctx.stroke();
 
     if (markLast) {
@@ -163,7 +169,7 @@ function drawLastMoveMarker(row, col) {
 
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e74c3c';
+    ctx.strokeStyle = getCssColor('--color-cinnabar', '#c23b22');
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.lineWidth = 1;
@@ -413,22 +419,22 @@ function showDisconnectOverlay(timeoutSeconds) {
     const overlay = document.createElement('div');
     overlay.id = 'disconnect-overlay';
     overlay.style.cssText = `
-        position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+        position: fixed; inset: 0; background: rgba(26, 24, 20, 0.85);
         display: flex; align-items: center; justify-content: center;
         z-index: 900; flex-direction: column; gap: 16px;
     `;
 
     const text = document.createElement('div');
-    text.style.cssText = 'font-size: 20px; color: #fff;';
+    text.style.cssText = `font-size: 20px; color: ${getCssColor('--color-text-on-ink', '#f5f0e8')};`;
     text.textContent = '对手已断线，等待重连中...';
 
     const countdown = document.createElement('div');
     countdown.id = 'disconnect-countdown';
-    countdown.style.cssText = 'font-size: 48px; color: #ffd700; font-weight: bold;';
+    countdown.style.cssText = `font-size: 48px; color: ${getCssColor('--color-gold-mist', '#c9a227')}; font-weight: bold;`;
     countdown.textContent = timeoutSeconds;
 
     const hint = document.createElement('div');
-    hint.style.cssText = 'font-size: 14px; color: #999;';
+    hint.style.cssText = `font-size: 14px; color: ${getCssColor('--color-ink-wash', '#6b6358')};`;
     hint.textContent = '超时后将自动判对方负';
 
     overlay.appendChild(text);

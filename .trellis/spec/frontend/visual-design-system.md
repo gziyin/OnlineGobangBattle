@@ -16,8 +16,8 @@
 | 页面 | 视觉强度 | 职责 |
 |------|----------|------|
 | `login.html` | 高（玄墨底 + 书卷 + 太极/印章/经文） | 品牌印象 + 认证表单 |
-| `hall.html` | 中 | 匹配、在线状态、用户信息；待统一 token |
-| `room.html` | 低–中 | **对局优先**：棋盘、回合、计时、连接；装饰克制 |
+| `hall.html` | 中 | 匹配、在线状态、用户信息；玄墨底 + 纸面卡片 + 五境壁纸 |
+| `room.html` | 低–中 | **对局优先**：棋盘、回合、计时、连接；token 化、无全屏壁纸 |
 
 原则（来自 PRODUCT.md）：
 
@@ -49,7 +49,7 @@
 | `--color-text-on-ink` | `text-on-ink` | 墨底上的纸白字 |
 | `--color-error` | （语义） | 表单错误，等同朱砂 |
 
-**待 hall/room 迁移时补充**：`--color-board-wood`、`--color-board-line`（见 DESIGN.md）。
+**待 hall/room 迁移时补充**：~~`--color-board-wood`、`--color-board-line`~~ 已加入 `tokens.css`。
 
 ### 字体
 
@@ -200,3 +200,29 @@ Focus：`border-color: var(--color-ink-mid)` + 浅墨阴影，**不用** jade �
 ### Correct — 纯 CSS 宣纸 + 墨晕
 
 见 [书卷组件](./scroll-component.md) 中 `.scroll__body` 多层 `radial-gradient` + `inset box-shadow` + `clip-path`。
+
+---
+
+## 9. 五境壁纸（Hall 专用）
+
+大厅在基础层（玄墨底 + 纸面卡片）之上可选叠加五境全屏封面。
+
+| 类名 | 职责 |
+|------|------|
+| `.story-wallpaper` | 固定全屏背景图；竖版素材用 `background-size: contain` + `center center`，`background-color: #0a0908` 填充 letterbox |
+| `.story-wallpaper__veil` | 玄墨渐变遮罩，保证纸面卡片对比度 ≥ 4.5:1 |
+| `.realm-picker` | 壁纸选择器容器 |
+| `.realm-picker__trigger` | 「五境 · 换壁纸」按钮 |
+| `.realm-picker__panel` | 展开面板（5 项横滑） |
+| `.realm-card` / `.realm-card.is-active` | 缩略图项；选中边框 `--color-cinnabar` |
+
+**数据**：manifest 见 [`story-covers.md`](./story-covers.md)；持久化键 `gobang_hall_wallpaper`（localStorage）。
+
+**禁止**：
+
+- room 页全屏铺五境封面（对局优先）
+- 用 `scroll-paper.png` 作书卷底图（透明格问题，见 scroll-component 禁令）
+- 竖版五境封面使用 `cover` 裁切（会丢失下半构图；应使用 `contain`）
+- 壁纸模式下与 `.ink-scene--hall` 山峦同时高亮（启用壁纸时隐藏山峦）
+
+**减少动效**：`prefers-reduced-motion: reduce` 时 `.story-wallpaper` 跳过 opacity transition。

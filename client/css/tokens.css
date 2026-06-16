@@ -19,6 +19,8 @@
     --color-text-secondary: #5c5348;
     --color-text-on-ink: #f5f0e8;
     --color-error: #c23b22;
+    --color-board-wood: #c4a35a;
+    --color-board-line: #5c4a32;
 
     /* Typography */
     --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
@@ -51,5 +53,9 @@
     --duration-normal: 220ms;
 
     /* Z-index scale */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal-backdrop: 300;
+    --z-modal: 400;
     --z-toast: 500;
 }

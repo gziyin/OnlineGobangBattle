@@ -1,0 +1,541 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap');
+@import url('tokens.css');
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+    color: var(--color-text-on-ink);
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 0%, rgba(74, 102, 112, 0.18) 0%, transparent 55%),
+        linear-gradient(165deg, #0a0908 0%, #1a1814 45%, #12100e 100%);
+    min-height: 100vh;
+    position: relative;
+}
+
+/* ── 五境壁纸层 ── */
+.story-wallpaper {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-color: #0a0908;
+    background-size: contain;
+    background-position: center center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.story-wallpaper.is-active {
+    opacity: 1;
+}
+
+.story-wallpaper__veil {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(10, 9, 8, 0.55) 0%, rgba(26, 24, 20, 0.72) 45%, rgba(26, 24, 20, 0.88) 100%);
+}
+
+/* ── 弱化水墨山峦（无壁纸时显示） ── */
+.ink-scene--hall {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.ink-scene--hall.is-hidden {
+    opacity: 0;
+}
+
+.ink-scene--hall .ink-scene__mountains {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: min(38vh, 280px);
+    opacity: 0.7;
+}
+
+/* ── 主布局 ── */
+.hall-page {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+}
+
+.hall-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-md);
+}
+
+.card-surface {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+}
+
+/* ── Header ── */
+.hall-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.hall-header__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    min-width: 0;
+}
+
+.hall-avatar {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    background: var(--color-ink-deep);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-paper);
+}
+
+.hall-username {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.hall-score {
+    font-size: var(--font-size-label);
+    color: var(--color-gold-mist);
+    margin-top: var(--space-xs);
+}
+
+.hall-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+/* ── 五境壁纸选择器 ── */
+.realm-picker {
+    position: relative;
+}
+
+.realm-picker__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 44px;
+    padding: 10px 16px;
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 1.5px solid var(--color-ink-mid);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--font-size-label);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.realm-picker__trigger:hover {
+    border-color: var(--color-ink-deep);
+    box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06);
+}
+
+.realm-picker__trigger-label {
+    font-family: var(--font-display);
+    white-space: nowrap;
+}
+
+.realm-picker__chevron {
+    font-size: 0.65rem;
+    opacity: 0.6;
+}
+
+.realm-picker__panel {
+    position: absolute;
+    top: calc(100% + var(--space-sm));
+    right: 0;
+    min-width: min(420px, calc(100vw - 32px));
+    padding: var(--space-md);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card-hover);
+    z-index: var(--z-dropdown);
+}
+
+.realm-picker__panel[hidden] {
+    display: none;
+}
+
+.realm-picker__title {
+    font-family: var(--font-display);
+    font-size: var(--font-size-label);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+    letter-spacing: 0.08em;
+}
+
+.realm-picker__track {
+    display: flex;
+    gap: var(--space-sm);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--space-xs);
+}
+
+.realm-card {
+    flex: 0 0 120px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-sm);
+    background: var(--color-paper);
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.realm-card:hover {
+    box-shadow: var(--shadow-card);
+}
+
+.realm-card.is-active {
+    border-color: var(--color-cinnabar);
+}
+
+.realm-card__thumb {
+    width: 72px;
+    height: 96px;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-color: var(--color-ink-deep);
+}
+
+.realm-card__stage {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-cinnabar);
+}
+
+.realm-card__name {
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    color: var(--color-text-primary);
+}
+
+.realm-card__tagline {
+    font-size: 0.6875rem;
+    color: var(--color-text-secondary);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── 按钮 ── */
+.btn-primary {
+    min-height: 44px;
+    padding: 12px 28px;
+    background: var(--color-cinnabar);
+    color: var(--color-text-on-ink);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--color-cinnabar-deep);
+    box-shadow: 0 4px 20px rgba(194, 59, 34, 0.35);
+}
+
+.btn-ghost {
+    min-height: 44px;
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 1.5px solid var(--color-ink-mid);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--font-size-label);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    border-color: var(--color-ink-deep);
+    color: var(--color-ink-deep);
+}
+
+.btn-primary:disabled,
+.btn-ghost:disabled,
+.btn-primary.is-disabled,
+.btn-ghost.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ── 主面板 ── */
+.hall-main {
+    padding: var(--space-xl) var(--space-lg);
+    text-align: center;
+}
+
+.hall-main__title {
+    font-family: var(--font-display);
+    font-size: var(--font-size-display);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-md);
+    letter-spacing: 0.06em;
+}
+
+.hall-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xl);
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 9999px;
+    font-size: var(--font-size-label);
+    font-weight: 500;
+}
+
+.status-pill--idle {
+    background: rgba(64, 145, 108, 0.15);
+    color: var(--color-jade-soft);
+}
+
+.status-pill--matching {
+    background: rgba(201, 162, 39, 0.18);
+    color: var(--color-gold-mist);
+}
+
+.status-pill--matched {
+    background: rgba(45, 106, 79, 0.2);
+    color: var(--color-jade);
+}
+
+.status-text {
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+}
+
+.status-icon {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.match-panel {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.waiting-info {
+    margin-top: var(--space-lg);
+    font-size: var(--font-size-label);
+    color: var(--color-text-secondary);
+}
+
+.waiting-info .time {
+    color: var(--color-gold-mist);
+    font-weight: 600;
+}
+
+/* ── Toast ── */
+.notification {
+    position: fixed;
+    top: var(--space-md);
+    right: var(--space-md);
+    max-width: min(360px, calc(100vw - 32px));
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-md);
+    background: var(--color-ink-deep);
+    color: var(--color-text-on-ink);
+    border-top: 3px solid var(--color-ink-mid);
+    display: none;
+    z-index: var(--z-toast);
+    box-shadow: var(--shadow-card-hover);
+}
+
+.notification.success {
+    border-top-color: var(--color-jade);
+}
+
+.notification.error {
+    border-top-color: var(--color-cinnabar);
+}
+
+.notification.show {
+    display: block;
+    animation: toast-in var(--duration-normal) var(--ease-out);
+}
+
+@keyframes toast-in {
+    from {
+        transform: translateX(24px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ── 连接状态胶囊 ── */
+.connection-status {
+    position: fixed;
+    bottom: var(--space-md);
+    left: var(--space-md);
+    padding: 10px 16px;
+    background: rgba(26, 24, 20, 0.88);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--color-text-on-ink);
+    z-index: var(--z-sticky);
+}
+
+.connection-status.connected {
+    color: var(--color-jade-soft);
+}
+
+.connection-status.disconnected {
+    color: var(--color-cinnabar);
+}
+
+.connection-status.connecting {
+    color: var(--color-gold-mist);
+}
+
+/* ── 重连模态框 ── */
+.reconnect-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 24, 20, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    padding: var(--space-md);
+}
+
+.reconnect-modal.hidden {
+    display: none;
+}
+
+.reconnect-content {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    min-width: min(360px, 100%);
+    max-width: 480px;
+    box-shadow: var(--shadow-card-hover);
+}
+
+.reconnect-content h2 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    margin-bottom: var(--space-md);
+}
+
+.reconnect-content .reconnect-info {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+    font-size: var(--font-size-label);
+}
+
+.reconnect-content .reconnect-countdown {
+    color: var(--color-gold-mist);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+}
+
+.reconnect-content .board-preview-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+}
+
+.reconnect-content #boardPreview {
+    border: 1px solid var(--color-board-line);
+    border-radius: var(--radius-sm);
+}
+
+.reconnect-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+/* ── 减少动效 ── */
+@media (prefers-reduced-motion: reduce) {
+    .story-wallpaper,
+    .ink-scene--hall {
+        transition: none;
+    }
+
+    .notification.show {
+        animation: none;
+    }
+}
