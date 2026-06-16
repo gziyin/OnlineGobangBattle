@@ -7,25 +7,11 @@
     <link rel="stylesheet" href="css/hall.css">
 </head>
 <body>
-    <div class="story-wallpaper" id="storyWallpaper" aria-hidden="true"></div>
-    <div class="story-wallpaper__veil" aria-hidden="true"></div>
+    <div class="ambient-bg" aria-hidden="true"></div>
+    <div class="ambient-bg__veil" aria-hidden="true"></div>
 
-    <div class="ink-scene ink-scene--hall" id="inkScene" aria-hidden="true">
-        <svg class="ink-scene__mountains" viewBox="0 0 1440 320" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="hallMountainFar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#3d3830" stop-opacity="0.5"/>
-                    <stop offset="100%" stop-color="#1a1814" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="hallMountainNear" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#6b6358" stop-opacity="0.55"/>
-                    <stop offset="100%" stop-color="#1a1814" stop-opacity="0"/>
-                </linearGradient>
-            </defs>
-            <path d="M0,320 L0,200 Q180,120 360,170 Q540,80 720,150 Q900,60 1080,130 Q1260,90 1440,160 L1440,320 Z" fill="url(#hallMountainFar)"/>
-            <path d="M0,320 L0,240 Q240,180 480,220 Q720,140 960,200 Q1200,160 1440,230 L1440,320 Z" fill="url(#hallMountainNear)"/>
-        </svg>
-    </div>
+    <div class="story-wallpaper" id="storyWallpaper" aria-hidden="true"></div>
+    <div class="story-wallpaper__ink-wash" aria-hidden="true"></div>
 
     <main class="hall-page">
         <div class="hall-container">

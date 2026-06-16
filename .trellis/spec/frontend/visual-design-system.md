@@ -203,26 +203,33 @@ Focus：`border-color: var(--color-ink-mid)` + 浅墨阴影，**不用** jade �
 
 ---
 
-## 9. 五境壁纸（Hall 专用）
+## 9. 五境壁纸与 ambient 底图（Hall / Room）
 
-大厅在基础层（玄墨底 + 纸面卡片）之上可选叠加五境全屏封面。
+**共享 ambient**：[`ambient-bg.css`](../../../client/css/ambient-bg.css) 中 `.ambient-bg` 使用 `assets/gobang-ambient-bg.jpeg`（16:9 cover），hall 与 room 均铺底。
+
+大厅默认态为**无五境壁纸**（ambient + `.ambient-bg__veil`）；用户可选叠加五境竖版封面。
 
 | 类名 | 职责 |
 |------|------|
-| `.story-wallpaper` | 固定全屏背景图；竖版素材用 `background-size: contain` + `center center`，`background-color: #0a0908` 填充 letterbox |
-| `.story-wallpaper__veil` | 玄墨渐变遮罩，保证纸面卡片对比度 ≥ 4.5:1 |
-| `.realm-picker` | 壁纸选择器容器 |
-| `.realm-picker__trigger` | 「五境 · 换壁纸」按钮 |
-| `.realm-picker__panel` | 展开面板（5 项横滑） |
-| `.realm-card` / `.realm-card.is-active` | 缩略图项；选中边框 `--color-cinnabar` |
+| `.ambient-bg` | 固定全屏 16:9 水墨底图；cover；`#0a0908` fallback |
+| `.ambient-bg__veil` | 大厅轻遮罩（默认氛围与五境模式共用，不切换） |
+| `.ambient-bg__veil--room` | 对局页略深 veil |
+| `.story-wallpaper` | 五境竖版 `contain` + `center`；叠于 ambient 之上 |
+| `.story-wallpaper__ink-wash` | 插画边缘溶边（opacity ~0.25）；对齐 `--wallpaper-edge-left/right` |
+| `.realm-picker` | 壁纸选择器 |
+| `.realm-card__thumb--default` | 「默认氛围」缩略图（ambient JPEG） |
 
-**数据**：manifest 见 [`story-covers.md`](./story-covers.md)；持久化键 `gobang_hall_wallpaper`（localStorage）。
+**数据**：[`realm-wallpapers.js`](../../../client/js/realm-wallpapers.js) 导出 `AMBIENT_BG`；持久化键 `gobang_hall_wallpaper`，`'none'` = 默认氛围。
+
+**层叠**（hall，底→顶）：`.ambient-bg` → `.ambient-bg__veil` → `.story-wallpaper` → `.story-wallpaper__ink-wash` → `.hall-page`。
+
+**层叠**（room）：`.ambient-bg` → `.ambient-bg__veil--room` → `.game-container`。
 
 **禁止**：
 
-- room 页全屏铺五境封面（对局优先）
-- 用 `scroll-paper.png` 作书卷底图（透明格问题，见 scroll-component 禁令）
-- 竖版五境封面使用 `cover` 裁切（会丢失下半构图；应使用 `contain`）
-- 壁纸模式下与 `.ink-scene--hall` 山峦同时高亮（启用壁纸时隐藏山峦）
+- room 页五境竖版封面或 picker
+- login 页 ambient / 五境
+- 竖版五境使用 `cover` 裁切
+- letterbox 纯色 `#0a0908`（应由 ambient cover 填充）
 
-**减少动效**：`prefers-reduced-motion: reduce` 时 `.story-wallpaper` 跳过 opacity transition。
+**减少动效**：`prefers-reduced-motion: reduce` 时 `.story-wallpaper` 与 `.story-wallpaper__ink-wash` 跳过 opacity transition。

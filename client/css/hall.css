@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap');
 @import url('tokens.css');
+@import url('ambient-bg.css');
 
 *,
 *::before,
@@ -7,6 +8,13 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    min-height: 100%;
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 0%, rgba(74, 102, 112, 0.18) 0%, transparent 55%),
+        linear-gradient(165deg, #0a0908 0%, #1a1814 45%, #12100e 100%);
 }
 
 body {
@@ -26,7 +34,7 @@ body {
     position: fixed;
     inset: 0;
     z-index: 0;
-    background-color: #0a0908;
+    background-color: transparent;
     background-size: contain;
     background-position: center center;
     background-repeat: no-repeat;
@@ -38,36 +46,26 @@ body {
     opacity: 1;
 }
 
-.story-wallpaper__veil {
+.story-wallpaper__ink-wash {
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background:
-        linear-gradient(180deg, rgba(10, 9, 8, 0.55) 0%, rgba(26, 24, 20, 0.72) 45%, rgba(26, 24, 20, 0.88) 100%);
-}
-
-/* ── 弱化水墨山峦（无壁纸时显示） ── */
-.ink-scene--hall {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    overflow: hidden;
-    transition: opacity var(--duration-normal) var(--ease-out);
-}
-
-.ink-scene--hall.is-hidden {
     opacity: 0;
+    transition: opacity var(--duration-normal) var(--ease-out);
+    background: linear-gradient(90deg,
+        transparent 0%,
+        transparent var(--wallpaper-edge-left, 28%),
+        rgba(61, 56, 48, 0.35) calc(var(--wallpaper-edge-left, 28%) + 4%),
+        transparent calc(var(--wallpaper-edge-left, 28%) + 14%),
+        transparent calc(var(--wallpaper-edge-right, 72%) - 14%),
+        rgba(61, 56, 48, 0.35) calc(var(--wallpaper-edge-right, 72%) - 4%),
+        transparent var(--wallpaper-edge-right, 72%),
+        transparent 100%);
 }
 
-.ink-scene--hall .ink-scene__mountains {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: min(38vh, 280px);
-    opacity: 0.7;
+body.has-wallpaper .story-wallpaper__ink-wash {
+    opacity: 0.25;
 }
 
 /* ── 主布局 ── */
@@ -245,6 +243,11 @@ body {
     background-position: center top;
     background-repeat: no-repeat;
     background-color: var(--color-ink-deep);
+}
+
+.realm-card__thumb--default {
+    background-color: var(--color-ink-deep);
+    background-position: center center;
 }
 
 .realm-card__stage {
@@ -531,7 +534,7 @@ body {
 /* ── 减少动效 ── */
 @media (prefers-reduced-motion: reduce) {
     .story-wallpaper,
-    .ink-scene--hall {
+    .story-wallpaper__ink-wash {
         transition: none;
     }
 

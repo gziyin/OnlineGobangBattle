@@ -1,0 +1,35 @@
+/* 共享玄墨 ambient 底图 — hall / room */
+
+.ambient-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-color: #0a0908;
+    background-image: url('../assets/gobang-ambient-bg.jpeg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+}
+
+.ambient-bg__veil {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(
+        180deg,
+        rgba(10, 9, 8, 0.15) 0%,
+        rgba(26, 24, 20, 0.22) 50%,
+        rgba(26, 24, 20, 0.28) 100%
+    );
+}
+
+.ambient-bg__veil--room {
+    background: linear-gradient(
+        180deg,
+        rgba(10, 9, 8, 0.28) 0%,
+        rgba(26, 24, 20, 0.35) 45%,
+        rgba(26, 24, 20, 0.42) 100%
+    );
+}

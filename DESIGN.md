@@ -136,16 +136,19 @@ components:
 
 - 用户信息区：横向卡片，头像用墨色圆形 + 金字段位。
 - 匹配按钮：Primary + 轻微墨晕 hover（CSS `box-shadow` 扩散，非 bounce）。
-- **五境壁纸**：全屏竖版封面 + 玄墨 veil；`.realm-picker` 切换，默认「雨天棋」。
+- **五境壁纸**：可选竖版封面叠于 ambient 底图；`.realm-picker` 切换，默认「默认氛围」（仅 ambient）；偏好跨会话保留。
 
 **静态资产**（`client/assets/`）：
 
 | 文件 | 用途 |
 |------|------|
-| `1雨天棋.png` … `5天地棋.png` | 大厅可切换壁纸 |
+| `gobang-ambient-bg.jpeg` | hall / room 共享 16:9 ambient 底图 |
+| `1雨天棋.png` … `5天地棋.png` | 大厅可切换五境壁纸 |
 | `scroll-paper.png` | 保留作书卷/宣纸参考；login 仍用纯 CSS 书卷，禁止直铺 PNG |
 
 ### 房间（room）
+
+- **背景**：与 hall 同 `gobang-ambient-bg.jpeg` + 略深 `.ambient-bg__veil--room`；不铺五境竖版封面。
 
 - 对手/己方信息条：对称布局，回合高亮用 `jade` / `gold-mist` 左边线 3px（对局状态允许细强调边，非装饰卡片）。
 - 棋盘：Canvas 保持 15×15；网格线 `board-line`，落子黑白对比清晰。
